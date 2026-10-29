@@ -99,3 +99,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
   - W4: Updated mobile touch targets to >= 44x44px for primary/icon/text buttons and form inputs to >= 16px font size to prevent mobile zoom.
   - W5: RecordsTable now renders distinct states for no data, no search matches (with clear search action), and permission/load errors.
 - Verification: 43 unit tests passing in Vitest, 8/8 comprehensive audit E2E scenarios passing in Playwright, strict TypeScript, lint, and production Next.js build verified.
+
+## UI Spacing, Select Alignment, and Morandi Palettes (2026-10-29)
+- Standardized empty-state record creation button margins with a dedicated `.table-empty-actions` wrapper providing consistent 20px padding (14px on mobile) matching filter bar and pagination.
+- Aligned dropdown select arrows across all native selects with custom SVG chevron and balanced horizontal/vertical margins.
+- Desaturated default Foundry theme to Morandi pine-teal (#365c52 / dark #8faea5) and added 6 new Morandi palettes (olive, clay, stone, pine, sand, mauve) with verified WCAG AA (>= 4.5:1) contrast across light and dark modes.
