@@ -60,9 +60,14 @@ import {
   Languages,
   Sparkles,
   Download,
+  Boxes,
+  ArrowRightLeft,
+  Building2,
+  Wrench,
+  CheckSquare,
 } from "lucide-react";
 import { config, groups, kinds, can, titleCase, type RecordData } from "./data";
-import { Button, Modal, Badge, Empty, confirmDialogDiscard } from "./ui";
+import { Button, Modal, Badge, Empty, confirmDialogDiscard, cn } from "./ui";
 import { StockOperation } from "./stock-operation";
 import {
   AuthScreen,
@@ -103,6 +108,42 @@ const icons: Record<string, typeof Package> = {
   settings: Settings,
   audit: FileText,
 };
+const quickCreateItems = [
+  {
+    group: "Sales & CRM",
+    items: [
+      { id: "customer", view: "customers", permission: "sales:write", label: "Customer", icon: Users },
+      { id: "inquiry", view: "inquiries", permission: "sales:write", label: "Inquiry", icon: Inbox },
+      { id: "quotation", view: "quotations", permission: "sales:write", label: "Quotation", icon: FileText },
+      { id: "order", view: "orders", permission: "sales:write", label: "Sales order", icon: ShoppingCart },
+    ],
+  },
+  {
+    group: "Supply chain",
+    items: [
+      { id: "product", view: "products", permission: "catalog:write", label: "Product", icon: Package },
+      { id: "inventory", view: "inventory", permission: "inventory:write", label: "Stock adjustment", icon: Boxes },
+      { id: "transfer", view: "inventory", modal: "transfer", permission: "inventory:write", label: "Stock transfer", icon: ArrowRightLeft },
+      { id: "purchase", view: "purchases", permission: "procurement:write", label: "Purchase order", icon: Truck },
+      { id: "supplier", view: "suppliers", permission: "procurement:write", label: "Supplier", icon: Building2 },
+    ],
+  },
+  {
+    group: "Operations",
+    items: [
+      { id: "fabrication", view: "fabrication", permission: "fabrication:write", label: "Fabrication job", icon: Wrench },
+      { id: "project", view: "projects", permission: "projects:write", label: "Project", icon: Briefcase },
+      { id: "task", view: "tasks", permission: "projects:write", label: "Task", icon: CheckSquare },
+    ],
+  },
+  {
+    group: "Finance & intelligence",
+    items: [
+      { id: "invoice", view: "invoices", permission: "finance:write", label: "Invoice", icon: Receipt },
+      { id: "credit", view: "credit-notes", permission: "finance:write", label: "Credit note", icon: CreditCard },
+    ],
+  },
+];
 export function Workspace() {
   const [client] = useState(
     () =>
@@ -139,8 +180,27 @@ function Application() {
     [formError, setFormError] = useState(""),
     [palette, setPalette] = useState(""),
     [range, setRange] = useState("30");
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const quickCreateRef = useRef<HTMLDivElement>(null);
   const [smallScreen, setSmallScreen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!quickCreateOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (!quickCreateRef.current?.contains(e.target as Node)) {
+        setQuickCreateOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setQuickCreateOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [quickCreateOpen]);
   useEffect(() => {
     const media = matchMedia("(max-width:760px)");
     const update = () => setSmallScreen(media.matches);
@@ -822,16 +882,66 @@ function Application() {
             >
               <Bell size={17} />
             </Button>
-            {can(role, "sales:write") && (
-              <Button
-                className="primary quick-create"
-                onClick={() => {
-                  navigate("inquiries", { modal: "create" });
-                }}
-              >
-                <Plus size={16} />
-                <span>{t("Quick create")}</span>
-              </Button>
+            {role !== "VIEWER" && (
+              <div className="quick-create-container" ref={quickCreateRef}>
+                <Button
+                  className="primary quick-create"
+                  aria-expanded={quickCreateOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setQuickCreateOpen(!quickCreateOpen)}
+                >
+                  <Plus size={16} />
+                  <span>{t("Quick create")}</span>
+                  <ChevronDown
+                    size={14}
+                    className={cn(
+                      "quick-create-chevron",
+                      quickCreateOpen && "rotate-180",
+                    )}
+                  />
+                </Button>
+                {quickCreateOpen && (
+                  <div className="quick-create-dropdown" role="menu">
+                    {quickCreateItems.map((group) => {
+                      const visibleItems = group.items.filter((item) =>
+                        can(role, item.permission),
+                      );
+                      if (!visibleItems.length) return null;
+                      return (
+                        <div key={group.group} className="quick-create-group">
+                          <div className="quick-create-heading">
+                            {t(group.group)}
+                          </div>
+                          {visibleItems.map((item) => {
+                            const IconComponent = item.icon;
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                role="menuitem"
+                                className="quick-create-item"
+                                onClick={() => {
+                                  setQuickCreateOpen(false);
+                                  if (item.modal === "transfer") {
+                                    setView("inventory");
+                                    setFormError("");
+                                    setModal("transfer");
+                                  } else {
+                                    navigate(item.view, { modal: "create" });
+                                  }
+                                }}
+                              >
+                                <IconComponent size={15} />
+                                <span>{t(item.label)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </header>
