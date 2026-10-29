@@ -1,3 +1,4 @@
+import { submitRegistration } from "./helpers.js";
 import { test, expect } from "@playwright/test";
 test("imports, project change approval, cutting and drawing takeoff", async ({
   page,
@@ -14,9 +15,7 @@ test("imports, project change approval, cutting and drawing takeoff", async ({
   await page
     .getByLabel("Password", { exact: true })
     .fill(`Module-${stamp}-password`);
-  await page
-    .getByRole("button", { name: "Create account", exact: true })
-    .click();
+  await submitRegistration(page);
   await page.getByLabel("Company name").fill(`Fictional Module QA ${stamp}`);
   await page
     .getByRole("button", { name: "Create workspace", exact: true })
@@ -44,7 +43,7 @@ test("imports, project change approval, cutting and drawing takeoff", async ({
   await page.getByRole("button", { name: "Create new" }).click();
   await page.getByLabel("Project name").fill("Fictional Office Fit-out");
   await page
-    .getByLabel(/^Customer/)
+    .getByRole("combobox", { name: "Customer", exact: true })
     .selectOption({ label: "Fictional CSV Client" });
   await page.getByLabel("Budget").fill("5000");
   await page.getByRole("button", { name: "Save record" }).click();
@@ -56,7 +55,7 @@ test("imports, project change approval, cutting and drawing takeoff", async ({
   await page.getByRole("button", { name: "Create new" }).click();
   await page.getByLabel("Change title").fill("Extra shelving");
   await page
-    .getByLabel(/^Project/)
+    .getByRole("combobox", { name: "Project", exact: true })
     .selectOption({ label: "Fictional Office Fit-out" });
   await page.getByLabel("Budget change amount").fill("750");
   await page.getByLabel("Reason").fill("Additional agreed shelving");

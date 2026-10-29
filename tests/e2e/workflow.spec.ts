@@ -1,3 +1,4 @@
+import { submitRegistration } from "./helpers.js";
 import { test, expect } from "@playwright/test";
 test("business onboarding, customer inquiry, quote, order, stock and payment", async ({
   page,
@@ -18,23 +19,7 @@ test("business onboarding, customer inquiry, quote, order, stock and payment", a
   await page
     .getByLabel("Password", { exact: true })
     .fill(`E2E-${stamp}-strong-password`);
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const response = page.waitForResponse(
-      (r) =>
-        r.url().endsWith("/auth/sign-up/email") &&
-        r.request().method() === "POST",
-    );
-    await page
-      .getByRole("button", { name: "Create account", exact: true })
-      .click();
-    const result = await response;
-    if (result.status() !== 429) break;
-    const seconds = Math.min(
-      60,
-      Math.max(1, Number(result.headers()["retry-after"]) || 11),
-    );
-    await page.waitForTimeout(seconds * 1000);
-  }
+  await submitRegistration(page);
   await expect(
     page.getByRole("heading", { name: "Make it your workspace." }),
   ).toBeVisible();
@@ -82,7 +67,7 @@ test("business onboarding, customer inquiry, quote, order, stock and payment", a
   await page.getByRole("button", { name: "Create new" }).click();
   await page.getByLabel("Subject").fill("Lobby handrail requirement");
   await page
-    .getByLabel(/^Customer/)
+    .getByRole("combobox", { name: "Customer", exact: true })
     .selectOption({ label: "Fictional Harbor Interiors" });
   await page
     .getByLabel("Original inquiry")
@@ -91,7 +76,7 @@ test("business onboarding, customer inquiry, quote, order, stock and payment", a
   await page.getByRole("button", { name: "Open →" }).first().click();
   await page.getByRole("button", { name: "Create quotation" }).click();
   await page
-    .getByLabel("Catalog product")
+    .getByRole("combobox", { name: "Catalog product", exact: true })
     .selectOption({ label: `SS304-${stamp} · SS304 square tube 40×40×2` });
   await page.getByLabel("Quantity", { exact: true }).fill("10");
   await page.getByRole("button", { name: "Save draft" }).click();
@@ -136,7 +121,7 @@ test("business onboarding, customer inquiry, quote, order, stock and payment", a
   await page.getByRole("button", { name: "Change language" }).click();
   await expect(page.getByRole("heading", { name: "经营概览" })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("button", { name: "打开导航" }).click();
   await expect(page.getByRole("navigation")).toBeVisible();
   await page
     .getByRole("navigation")

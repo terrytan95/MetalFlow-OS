@@ -1,4 +1,10 @@
 "use client";
+import { useI18n, LocaleProvider } from "../lib/i18n";
+import { enterWorkspace } from "../lib/motion";
+import { useDebounced } from "../lib/hooks";
+import dynamic from "next/dynamic";
+import { FileSettings } from "./file-settings";
+import { Schedule } from "./schedule";
 import { AIProviderSettings } from "./ai-settings";
 import { Importer } from "./importer";
 import { palettes, type PaletteId } from "./themes";
@@ -7,16 +13,9 @@ import {
   QueryClient,
   QueryClientProvider,
   useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+
 import {
   Layers3,
   LayoutDashboard,
@@ -64,6 +63,9 @@ import {
 import { ResourceForm, DocumentForm, type API } from "./forms";
 import { RecordsTable } from "./table";
 import { Cutting, AIWorkspace, Takeoff } from "./operations";
+const RevenueChart = dynamic(() => import("./revenue-chart"), {
+  loading: () => <div className="skeleton chart" />,
+});
 const icons: Record<string, typeof Package> = {
   dashboard: LayoutDashboard,
   inquiries: Inbox,
@@ -95,19 +97,24 @@ export function Workspace() {
   const [client] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { retry: false, staleTime: 10000 } },
+        defaultOptions: {
+          queries: { retry: false, staleTime: 30000, gcTime: 120000 },
+        },
       }),
   );
   return (
     <QueryClientProvider client={client}>
-      <Application />
+      <LocaleProvider>
+        <Application />
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }
 function Application() {
+  const { t, locale, setLocale } = useI18n();
+
   const [view, setView] = useState("dashboard"),
     [organization, setOrganization] = useState(""),
-    [locale, setLocale] = useState("en"),
     [theme, setTheme] = useState("light"),
     [colorPalette, setColorPalette] = useState<PaletteId>("foundry"),
     [preferencesLoaded, setPreferencesLoaded] = useState(false),
@@ -120,8 +127,58 @@ function Application() {
     [message, setMessage] = useState(""),
     [formError, setFormError] = useState(""),
     [palette, setPalette] = useState(""),
-    [refreshKey, refresh] = useState(0),
     [range, setRange] = useState("30");
+  const [smallScreen, setSmallScreen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const media = matchMedia("(max-width:760px)");
+    const update = () => setSmallScreen(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (!smallScreen || !mobile) return;
+    const first = sidebarRef.current?.querySelector<HTMLElement>("button");
+    first?.focus();
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobile(false);
+        document.querySelector<HTMLElement>(".mobile-only")?.focus();
+      }
+      if (e.key === "Tab") {
+        const nodes = Array.from(
+          sidebarRef.current?.querySelectorAll<HTMLElement>(
+            "button,select,summary,[href]",
+          ) || [],
+        ).filter(
+          (el) => el.getClientRects().length && !el.hasAttribute("disabled"),
+        );
+        const first = nodes[0],
+          last = nodes.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [smallScreen, mobile]);
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    enterWorkspace(mainRef.current);
+  }, [view]);
+  const queryClient = useQueryClient();
+  const searchValue = useDebounced(search),
+    paletteValue = useDebounced(palette);
+  const refresh = useCallback(() => {
+    void queryClient.invalidateQueries();
+  }, [queryClient]);
+  const actionLock = useRef(false);
   const pendingMutations = useRef(new Map<string, string>());
   const [invitation, setInvitation] = useState(""),
     [resetToken, setResetToken] = useState("");
@@ -134,7 +191,11 @@ function Application() {
         !(body instanceof FormData) &&
         (route === "payments" ||
           route.endsWith("/receive") ||
-          route.endsWith("/fulfill"))
+          route.endsWith("/fulfill") ||
+          route === "credit-notes" ||
+          route === "inventory/transfer" ||
+          route === "inventory/adjust" ||
+          route === "fabrication")
       ) {
         const data = { ...(body as RecordData) };
         delete data.idempotencyKey;
@@ -143,7 +204,10 @@ function Application() {
           pendingMutations.current.set(key, crypto.randomUUID());
         body = { ...data, idempotencyKey: pendingMutations.current.get(key) };
       }
-      const headers: Record<string, string> = { "x-organization-id": org };
+      const headers: Record<string, string> = {
+        "x-organization-id": org,
+        "accept-language": locale,
+      };
       if (body && !(body instanceof FormData))
         headers["Content-Type"] = "application/json";
       const res = await fetch(`/metalflow/api/v1/${route}`, {
@@ -169,11 +233,12 @@ function Application() {
         return res.blob();
       return res.json();
     },
-    [organization],
+    [organization, locale],
   );
   const me = useQuery({
-    queryKey: ["me", organization, refreshKey],
+    queryKey: ["me", organization],
     queryFn: () => api("me"),
+    staleTime: 60000,
   });
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -187,7 +252,7 @@ function Application() {
     if (palettes.some((p) => p.id === savedPalette))
       setColorPalette(savedPalette as PaletteId);
     setPreferencesLoaded(true);
-    setLocale(localStorage.getItem("metalflow.locale") || "en");
+    setLocale(localStorage.getItem("metalflow.locale") === "zh" ? "zh" : "en");
     setCollapsed(localStorage.getItem("metalflow.collapsed") === "true");
     const route = location.hash.slice(1);
     if (groups.flatMap((g) => g.items).some((i) => i[0] === route))
@@ -198,7 +263,7 @@ function Application() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.palette = colorPalette;
     localStorage.setItem("metalflow.palette", colorPalette);
-    document.documentElement.lang = locale;
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
     localStorage.setItem("metalflow.theme", theme);
     localStorage.setItem("metalflow.locale", locale);
   }, [theme, locale, colorPalette, preferencesLoaded]);
@@ -241,7 +306,14 @@ function Application() {
     window.addEventListener("keydown", handler);
     const hash = () => {
       const v = location.hash.slice(1);
-      if (v) setView(v);
+      if (groups.flatMap((g) => g.items).some((i) => i[0] === v)) {
+        setView(v);
+        setSearch("");
+        setPage(1);
+        setModal("");
+        setSelected(undefined);
+        setMobile(false);
+      }
     };
     window.addEventListener("hashchange", hash);
     return () => {
@@ -249,31 +321,59 @@ function Application() {
       window.removeEventListener("hashchange", hash);
     };
   }, []);
-  const [board, setBoard] = useState(false);
+  const [board, setBoard] = useState(false),
+    [schedule, setSchedule] = useState(false);
   const done = () => {
     pendingMutations.current.clear();
     setModal("");
     setSelected(undefined);
     setMessage("Saved successfully");
     setFormError("");
-    refresh((v) => v + 1);
+    void queryClient.invalidateQueries({
+      queryKey: ["list", view, organization],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["analytics", organization],
+    });
+    void queryClient.invalidateQueries({ queryKey: ["lookups", organization] });
+    if (["settings", "team"].includes(view)) refresh();
   };
   const lookupsQuery = useQuery({
-    queryKey: ["lookups", organization, refreshKey],
-    enabled: !!org,
+    queryKey: ["lookups", organization],
+    enabled:
+      !!org &&
+      ![
+        "dashboard",
+        "analytics",
+        "settings",
+        "team",
+        "design",
+        "assistant",
+        "cutting",
+        "audit",
+      ].includes(view),
     queryFn: async () =>
       Object.fromEntries(
         await Promise.all(
-          ["customers", "products", "suppliers", "warehouses", "projects"].map(
-            async (r) => [r, (await api(`${r}?limit=100`)).items],
-          ),
+          [
+            "customers",
+            "products",
+            "suppliers",
+            "warehouses",
+            "projects",
+            "tax-rates",
+          ].map(async (r) => [r, (await api(`${r}?limit=100`)).items]),
         ),
       ),
   });
   const lookups: Record<string, RecordData[]> = lookupsQuery.data || {};
   const endpoint = kinds[view] ? `documents?kind=${kinds[view]}` : `${view}?`;
   const list = useQuery({
-    queryKey: ["list", view, organization, page, search, refreshKey],
+    queryKey: ["list", view, organization, page, searchValue],
+    placeholderData: (previous, query) =>
+      query?.queryKey[1] === view && query?.queryKey[2] === organization
+        ? previous
+        : undefined,
     enabled:
       !!org &&
       ![
@@ -287,36 +387,41 @@ function Application() {
       ].includes(view),
     queryFn: () =>
       api(
-        `${endpoint}${endpoint.endsWith("?") ? "" : "&"}page=${page}&search=${encodeURIComponent(search)}`,
+        `${endpoint}${endpoint.endsWith("?") ? "" : "&"}page=${page}&search=${encodeURIComponent(searchValue)}`,
       ),
   });
   const analytics = useQuery({
-    queryKey: ["analytics", organization, range, refreshKey],
+    queryKey: ["analytics", organization, range],
     enabled: !!org && (view === "dashboard" || view === "analytics"),
     queryFn: () =>
       api(
-        `analytics?from=${new Date(Date.now() - Number(range) * 86400000).toISOString()}`,
+        `analytics?from=${(range === "1" ? new Date(new Date().setHours(0, 0, 0, 0)) : new Date(Date.now() - Number(range) * 86400000)).toISOString()}`,
       ),
   });
   const team = useQuery({
-    queryKey: ["team", organization, refreshKey],
+    queryKey: ["team", organization],
     enabled: !!org && view === "team",
     queryFn: () => api("team"),
   });
   const notifications = useQuery({
-    queryKey: ["activity", organization, refreshKey],
+    queryKey: ["activity", organization],
     enabled: !!org && modal === "notifications",
     queryFn: () => api("activity"),
   });
   const jobs = useQuery({
-    queryKey: ["jobs", organization, refreshKey],
+    queryKey: ["jobs", organization],
     enabled: !!org && ["design", "assistant"].includes(view),
     queryFn: () => api("ai/jobs"),
-    refetchInterval: 15000,
+    refetchInterval: (query) =>
+      query.state.data?.items?.some((j: RecordData) =>
+        ["QUEUED", "RUNNING"].includes(j.status),
+      )
+        ? 5000
+        : false,
   });
   const globalSearch = useQuery({
-    queryKey: ["global-search", organization, palette],
-    enabled: !!org && modal === "command" && palette.length > 1,
+    queryKey: ["global-search", organization, paletteValue],
+    enabled: !!org && modal === "command" && paletteValue.length > 1,
     queryFn: async () => {
       const out = await Promise.all(
         ["customers", "products", "inquiries", "projects"].map(
@@ -324,7 +429,7 @@ function Application() {
             resource,
             items: (
               await api(
-                `${resource}?search=${encodeURIComponent(palette)}&limit=5`,
+                `${resource}?search=${encodeURIComponent(paletteValue)}&limit=5`,
               )
             ).items,
           }),
@@ -340,7 +445,7 @@ function Application() {
         token={resetToken}
         done={() => {
           setResetToken("");
-          refresh((v) => v + 1);
+          refresh();
         }}
       />
     );
@@ -348,11 +453,10 @@ function Application() {
     return (
       <div className="loading-screen">
         <Layers3 />
-        <span>Opening MetalFlow OS…</span>
+        <span>{t("Opening MetalFlow OS…")}</span>
       </div>
     );
-  if (!me.data)
-    return <AuthScreen api={api} done={() => refresh((v) => v + 1)} />;
+  if (!me.data) return <AuthScreen api={api} done={() => refresh()} />;
   if (invitation)
     return (
       <InvitationScreen
@@ -360,12 +464,21 @@ function Application() {
         token={invitation}
         done={() => {
           setInvitation("");
-          refresh((v) => v + 1);
+          refresh();
         }}
       />
     );
   if (!membership || modal === "organization")
-    return <Onboarding api={api} done={() => refresh((v) => v + 1)} />;
+    return (
+      <Onboarding
+        api={api}
+        done={() => {
+          setModal("");
+          setOrganization(localStorage.getItem("metalflow.org") || "");
+          refresh();
+        }}
+      />
+    );
   const allowed = (id: string) => {
     if (
       ["team", "settings", "audit"].includes(id) &&
@@ -373,7 +486,7 @@ function Application() {
     )
       return false;
     if (
-      ["expenses", "payments", "analytics"].includes(id) &&
+      ["expenses", "payments", "analytics", "credit-notes"].includes(id) &&
       !can(role, "finance:read")
     )
       return false;
@@ -421,7 +534,7 @@ function Application() {
     config[view]?.permission ||
     (view === "purchases"
       ? "purchase:write"
-      : view === "invoices" || view === "payments"
+      : view === "invoices" || view === "payments" || view === "credit-notes"
         ? "finance:write"
         : kinds[view]
           ? "sales:write"
@@ -429,14 +542,20 @@ function Application() {
             ? "inventory:write"
             : "organization:manage");
   const act = async (route: string, body: unknown) => {
+    if (actionLock.current) return;
+    actionLock.current = true;
     try {
       await api(route, "POST", body);
       done();
     } catch (e) {
       setFormError((e as Error).message);
+    } finally {
+      actionLock.current = false;
     }
   };
   const exportCSV = () => {
+    if (list.isFetching || list.isPlaceholderData || search !== searchValue)
+      return;
     const items = list.data?.items || [];
     if (!items.length) return;
     const cols = Object.keys(items[0]).filter(
@@ -466,29 +585,41 @@ function Application() {
       {mobile && (
         <button
           className="mobile-backdrop"
-          aria-label="Close navigation"
+          aria-label={t("Close navigation")}
           onClick={() => setMobile(false)}
         />
       )}
-      <aside className="sidebar">
+      <aside
+        ref={sidebarRef}
+        className="sidebar"
+        inert={smallScreen && !mobile}
+      >
         <button
           className="brand"
           onClick={() => navigate("dashboard")}
-          aria-label="MetalFlow home"
+          aria-label={t("MetalFlow home")}
         >
           <Layers3 />
           <span>
-            MetalFlow <b>OS</b>
+            {" "}
+            {t("MetalFlow")} <b>{t("OS")}</b>
           </span>
         </button>
         <div className="workspace-switch">
           <span className="workspace-avatar">{org.name.slice(0, 1)}</span>
           <select
-            aria-label="Select workspace"
+            aria-label={t("Select workspace")}
             value={organization}
             onChange={(e) => {
               if (e.target.value === "new") setModal("organization");
               else {
+                setModal("");
+                setSelected(undefined);
+                setSearch("");
+                setPage(1);
+                pendingMutations.current.clear();
+                setView("dashboard");
+                location.hash = "dashboard";
                 setOrganization(e.target.value);
                 localStorage.setItem("metalflow.org", e.target.value);
               }
@@ -499,14 +630,14 @@ function Application() {
                 {m.organization.name}
               </option>
             ))}
-            <option value="new">+ Create workspace</option>
+            <option value="new">{t("+ Create workspace")}</option>
           </select>
         </div>
-        <nav aria-label="Main navigation">
+        <nav aria-label={t("Main navigation")}>
           {groups.map((g) => (
             <details key={g.label} open>
               <summary>
-                {g.label}
+                {t(g.label)}
                 <ChevronDown size={11} />
               </summary>
               {g.items
@@ -540,34 +671,46 @@ function Application() {
         <div className="sidebar-bottom">
           <span className="user-avatar">{me.data.user.name.slice(0, 1)}</span>
           <div>
-            <strong>{me.data.user.name}</strong>
-            <small>{role.toLowerCase().replaceAll("_", " ")}</small>
+            <button
+              className="profile-button"
+              onClick={() => setModal("profile")}
+            >
+              <strong>{me.data.user.name}</strong>
+            </button>
+            <small>{t(role)}</small>
           </div>
           <Button
-            aria-label="Sign out"
+            aria-label={t("Sign out")}
             onClick={async () => {
               await api("auth/sign-out", "POST", {});
               localStorage.removeItem("metalflow.org");
-              refresh((v) => v + 1);
+              pendingMutations.current.clear();
+              setOrganization("");
+              setSelected(undefined);
+              setModal("");
+              setView("dashboard");
+              queryClient.clear();
+              refresh();
             }}
           >
             <LogOut size={16} />
           </Button>
         </div>
       </aside>
-      <div className="main-column">
+      <div className="main-column" inert={smallScreen && mobile}>
         <header className="global-header">
           <div className="actions">
             <Button
               className="mobile-only"
-              aria-label="Open navigation"
+              aria-label={t("Open navigation")}
+              aria-expanded={mobile}
               onClick={() => setMobile(true)}
             >
               <Menu size={18} />
             </Button>
             <Button
               className="desktop-only icon"
-              aria-label="Collapse sidebar"
+              aria-label={t("Collapse sidebar")}
               onClick={() => {
                 setCollapsed(!collapsed);
                 localStorage.setItem("metalflow.collapsed", String(!collapsed));
@@ -576,7 +719,8 @@ function Application() {
               <Menu size={18} />
             </Button>
             <span className="header-breadcrumb">
-              Workspace <span>/</span> <strong>{title}</strong>
+              {" "}
+              {t("Workspace")} <span>/</span> <strong>{title}</strong>
             </span>
           </div>
           <div className="header-tools">
@@ -586,34 +730,36 @@ function Application() {
               onClick={() => setModal("command")}
             >
               <Search size={15} />
-              <span>{locale === "zh" ? "搜索工作区" : "Search workspace"}</span>
-              <kbd>⌘ K</kbd>
+              <span>
+                {locale === "zh" ? "搜索工作区" : t("Search workspace")}
+              </span>
+              <kbd>{t("⌘ K")}</kbd>
             </button>
             <Button
               className="icon"
-              aria-label="Change language"
+              aria-label={t("Change language")}
               onClick={() => setLocale(locale === "en" ? "zh" : "en")}
             >
               <Languages size={17} />
             </Button>
             <Button
               className="icon"
-              aria-label="Color themes"
-              title={locale === "zh" ? "配色主题" : "Color themes"}
+              aria-label={t("Color themes")}
+              title={locale === "zh" ? "配色主题" : t("Color themes")}
               onClick={() => setModal("appearance")}
             >
               <Palette size={17} />
             </Button>
             <Button
               className="icon"
-              aria-label="Toggle theme"
+              aria-label={t("Toggle theme")}
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             >
               {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
             </Button>
             <Button
               className="icon"
-              aria-label="Activity notifications"
+              aria-label={t("Activity notifications")}
               onClick={() => setModal("notifications")}
             >
               <Bell size={17} />
@@ -627,46 +773,53 @@ function Application() {
                 }}
               >
                 <Plus size={16} />
-                <span>Quick create</span>
+                <span>{t("Quick create")}</span>
               </Button>
             )}
           </div>
         </header>
-        <main>
+        <main ref={mainRef} data-view={view}>
           <div className="page-heading">
             <div>
               <div className="eyebrow">
                 {view === "dashboard"
-                  ? "YOUR BUSINESS, IN FOCUS"
-                  : "METALFLOW WORKSPACE"}
+                  ? t("YOUR BUSINESS, IN FOCUS")
+                  : t("METALFLOW WORKSPACE")}
               </div>
               <h1>
                 {view === "dashboard"
                   ? locale === "zh"
                     ? "经营概览"
-                    : "Operations overview"
+                    : t("Operations overview")
                   : title}
               </h1>
               <p>
                 {view === "dashboard"
                   ? locale === "zh"
                     ? "每一个询价、订单和项目，尽在掌握。"
-                    : "Every inquiry, order and project. Moving together."
-                  : config[view]?.description ||
-                    "Connected records. Clear decisions. Full traceability."}
+                    : t("Every inquiry, order and project. Moving together.")
+                  : t(
+                      config[view]?.description ||
+                        "Connected records. Clear decisions. Full traceability.",
+                    )}
               </p>
             </div>
             <div className="actions">
+              {view === "tasks" && (
+                <Button onClick={() => setSchedule(!schedule)}>
+                  {t(schedule ? "Table view" : "Calendar view")}
+                </Button>
+              )}
               {["dashboard", "analytics"].includes(view) ? (
                 <select
-                  aria-label="Date range"
+                  aria-label={t("Date range")}
                   value={range}
                   onChange={(e) => setRange(e.target.value)}
                 >
-                  <option value="1">Today</option>
-                  <option value="7">Last 7 days</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
+                  <option value="1">{t("Today")}</option>
+                  <option value="7">{t("Last 7 days")}</option>
+                  <option value="30">{t("Last 30 days")}</option>
+                  <option value="90">{t("Last 90 days")}</option>
                 </select>
               ) : ![
                   "settings",
@@ -682,17 +835,17 @@ function Application() {
                   onClick={() => {
                     setSelected(undefined);
                     setFormError("");
-                    setModal("create");
+                    setModal(view === "credit-notes" ? "credit" : "create");
                   }}
                 >
                   <Plus size={16} />
                   {view === "team"
-                    ? "Invite member"
+                    ? t("Invite member")
                     : view === "inventory"
-                      ? "Adjust stock"
+                      ? t("Adjust stock")
                       : view === "payments"
-                        ? "Record payment"
-                        : "Create new"}
+                        ? t("Record payment")
+                        : t("Create new")}
                 </Button>
               ) : null}
             </div>
@@ -700,21 +853,23 @@ function Application() {
           {message && (
             <div role="status" className="toast">
               <CheckCircle2 size={16} />
-              {message}
-              <button aria-label="Dismiss" onClick={() => setMessage("")}>
+              {t(message)}
+              <button aria-label={t("Dismiss")} onClick={() => setMessage("")}>
                 ×
               </button>
             </div>
           )}
           {!allowed(view) ? (
             <div className="notice">
-              This module is disabled or your role does not have permission to
-              view it.
+              {" "}
+              {t(
+                "This module is disabled or your role does not have permission to view it.",
+              )}{" "}
             </div>
           ) : ["dashboard", "analytics"].includes(view) ? (
             <>
               {analytics.isError ? (
-                <p className="error">{analytics.error.message}</p>
+                <p className="error">{t(analytics.error.message)}</p>
               ) : analytics.isPending ? (
                 <div className="skeleton-grid">
                   {[1, 2, 3, 4].map((n) => (
@@ -756,11 +911,11 @@ function Application() {
                     ].map(([label, value, note, Icon]: any) => (
                       <article className="metric" key={label}>
                         <div>
-                          <span>{label}</span>
+                          <span>{t(label)}</span>
                           <Icon size={17} />
                         </div>
                         <strong>{value}</strong>
-                        <small>{note}</small>
+                        <small>{t(note)}</small>
                       </article>
                     ))}
                   </div>
@@ -768,50 +923,29 @@ function Application() {
                     <section className="panel revenue-panel">
                       <div className="panel-title">
                         <div>
-                          <h2>Revenue overview</h2>
+                          <h2>{t("Revenue overview")}</h2>
                           <p>
-                            Issued invoice value · {org.currency} · excluding
-                            tax
+                            {" "}
+                            {t("Issued invoice value ·")} {org.currency}{" "}
+                            {t("· excluding tax")}{" "}
                           </p>
                         </div>
                         <Badge value="DATABASE" />
                       </div>
                       {analytics.data.trend?.length ? (
-                        <div className="chart">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={analytics.data.trend}>
-                              <CartesianGrid
-                                vertical={false}
-                                stroke="var(--border)"
-                              />
-                              <XAxis
-                                dataKey="date"
-                                tickFormatter={(v) => v.slice(5)}
-                                tick={{ fontSize: 11 }}
-                                axisLine={false}
-                              />
-                              <YAxis tick={{ fontSize: 11 }} axisLine={false} />
-                              <Tooltip />
-                              <Area
-                                type="monotone"
-                                dataKey="revenue"
-                                stroke="var(--accent)"
-                                fill="var(--soft)"
-                                strokeWidth={2}
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
+                        <RevenueChart data={analytics.data.trend} />
                       ) : (
                         <Empty
-                          title="Your revenue story starts here"
-                          description="Issue an invoice to see real revenue in this chart."
+                          title={t("Your revenue story starts here")}
+                          description={t(
+                            "Issue an invoice to see real revenue in this chart.",
+                          )}
                         />
                       )}
                     </section>
                     <section className="panel attention">
                       <div className="panel-title">
-                        <h2>Needs attention</h2>
+                        <h2>{t("Needs attention")}</h2>
                         <span className="live-dot" />
                       </div>
                       {[
@@ -843,24 +977,29 @@ function Application() {
                             <Icon size={18} />
                           </span>
                           <div>
-                            <strong>{a}</strong>
-                            <small>{b}</small>
+                            <strong>{t(a)}</strong>
+                            <small>{t(b)}</small>
                           </div>
                           <ChevronRight size={15} />
                         </button>
                       ))}
                       <div className="workflow-note">
-                        <span className="eyebrow">ONE CONNECTED WORKFLOW</span>
-                        <p>Inquiry → Quote → Order → Invoice</p>
+                        <span className="eyebrow">
+                          {t("ONE CONNECTED WORKFLOW")}
+                        </span>
+                        <p>{t("Inquiry → Quote → Order → Invoice")}</p>
                         <small>
-                          Commercial history stays linked at every step.
+                          {" "}
+                          {t(
+                            "Commercial history stays linked at every step.",
+                          )}{" "}
                         </small>
                       </div>
                     </section>
                     {view === "analytics" && analytics.data.salesByCustomer && (
                       <section className="panel span-2">
                         <div className="panel-title">
-                          <h2>Commercial performance</h2>
+                          <h2>{t("Commercial performance")}</h2>
                           <Badge
                             value={
                               analytics.data.costComplete
@@ -871,29 +1010,31 @@ function Application() {
                         </div>
                         <div className="mini-metrics">
                           <div>
-                            <small>Gross profit · quoted catalog cost</small>
+                            <small>
+                              {t("Gross profit · quoted catalog cost")}
+                            </small>
                             <strong>
                               {analytics.data.grossProfit === null
-                                ? "Unavailable"
+                                ? t("Unavailable")
                                 : money(analytics.data.grossProfit)}
                             </strong>
                           </div>
                           <div>
-                            <small>Inventory value · current unit cost</small>
+                            <small>
+                              {t("Inventory value · current unit cost")}
+                            </small>
                             <strong>
                               {money(analytics.data.inventoryValuation)}
                             </strong>
                           </div>
                           <div>
-                            <small>Low-stock products</small>
-                            <strong>
-                              {analytics.data.lowStock?.length || 0}
-                            </strong>
+                            <small>{t("Low-stock products")}</small>
+                            <strong>{analytics.data.lowStockCount || 0}</strong>
                           </div>
                         </div>
                         <div className="form-grid">
                           <section>
-                            <h3>Sales by customer</h3>
+                            <h3>{t("Sales by customer")}</h3>
                             {analytics.data.salesByCustomer.map(
                               (r: RecordData) => (
                                 <div key={r.id} className="snapshot-row">
@@ -904,7 +1045,9 @@ function Application() {
                             )}
                           </section>
                           <section>
-                            <h3>Sales by product · before document discount</h3>
+                            <h3>
+                              {t("Sales by product · before document discount")}
+                            </h3>
                             {analytics.data.salesByProduct.map(
                               (r: RecordData) => (
                                 <div key={r.id} className="snapshot-row">
@@ -916,28 +1059,29 @@ function Application() {
                           </section>
                         </div>
                         <h3 className="section-title">
-                          Project budget tracking
+                          {" "}
+                          {t("Project budget tracking")}{" "}
                         </h3>
                         {analytics.data.projectBudgets.map((r: RecordData) => (
                           <div key={r.id} className="snapshot-row">
                             <span>{r.name}</span>
                             <strong>
-                              {money(r.expenses)} spent / {money(r.budget)}{" "}
-                              budget
+                              {money(r.expenses)} {t("spent /")}{" "}
+                              {money(r.budget)} {t("budget")}{" "}
                             </strong>
                           </div>
                         ))}
                         <p className="notice">
-                          Gross profit uses catalog cost snapshots at quotation
-                          creation. Custom lines without costs make gross profit
-                          unavailable. Inventory valuation uses current catalog
-                          cost; it is not an audited accounting valuation.
+                          {" "}
+                          {t(
+                            "Gross profit uses catalog cost snapshots at quotation creation. Custom lines without costs make gross profit unavailable. Inventory valuation uses current catalog cost; it is not an audited accounting valuation.",
+                          )}{" "}
                         </p>
                       </section>
                     )}
                     <section className="panel activity">
                       <div className="panel-title">
-                        <h2>Recent activity</h2>
+                        <h2>{t("Recent activity")}</h2>
                         <Button
                           onClick={() =>
                             navigate(
@@ -947,8 +1091,8 @@ function Application() {
                             )
                           }
                         >
-                          View records
-                          <ArrowUpRight size={14} />
+                          {" "}
+                          {t("View records")} <ArrowUpRight size={14} />
                         </Button>
                       </div>
                       {analytics.data.activity.length ? (
@@ -957,9 +1101,11 @@ function Application() {
                             <span className="timeline-dot" />
                             <div>
                               <strong>
-                                {titleCase(a.action.replaceAll(".", " "))}
+                                {t(titleCase(a.action.replaceAll(".", " ")))}
                               </strong>
-                              <small>Record {a.entityId.slice(0, 8)}</small>
+                              <small>
+                                {t("Record")} {a.entityId.slice(0, 8)}
+                              </small>
                             </div>
                             <time>
                               {new Date(a.createdAt).toLocaleString(locale)}
@@ -968,34 +1114,38 @@ function Application() {
                         ))
                       ) : (
                         <Empty
-                          title="A fresh workspace"
-                          description="Your team's activity will appear here as you work."
+                          title={t("A fresh workspace")}
+                          description={t(
+                            "Your team's activity will appear here as you work.",
+                          )}
                         />
                       )}
                     </section>
                     <section className="panel">
-                      <h2>Workspace snapshot</h2>
+                      <h2>{t("Workspace snapshot")}</h2>
                       <div className="snapshot-row">
-                        <span>Stock positions</span>
+                        <span>{t("Stock positions")}</span>
                         <strong>{analytics.data.stockLines}</strong>
                       </div>
                       <div className="snapshot-row">
-                        <span>Quote conversion</span>
+                        <span>{t("Quote conversion")}</span>
                         <strong>
                           {analytics.data.conversionRate.toFixed(1)}%
                         </strong>
                       </div>
                       <div className="snapshot-row">
-                        <span>Active projects</span>
+                        <span>{t("Active projects")}</span>
                         <strong>{analytics.data.activeProjects}</strong>
                       </div>
                       <div className="snapshot-row">
-                        <span>Base currency</span>
+                        <span>{t("Base currency")}</span>
                         <strong>{org.currency}</strong>
                       </div>
                       {analytics.data.aging?.map((a: any) => (
                         <div className="snapshot-row" key={a.label}>
-                          <span>Receivables · {a.label} days</span>
+                          <span>
+                            {t("Receivables ·")} {a.label} {t("days")}
+                          </span>
                           <strong>{money(a.amount)}</strong>
                         </div>
                       ))}
@@ -1016,17 +1166,72 @@ function Application() {
                   : me.data.capabilities.ai
               }
               jobs={jobs.data?.items || []}
-              refresh={() => refresh((v) => v + 1)}
+              refresh={() => refresh()}
             />
           ) : view === "takeoffs" ? (
             <Takeoff
+              onQuote={
+                can(role, "sales:write")
+                  ? (takeoff) => {
+                      if (
+                        takeoff.measurements.filter(
+                          (m: RecordData) => m.verified,
+                        ).length > 100
+                      ) {
+                        setMessage(
+                          t(
+                            "A quotation supports at most 100 lines. Split this takeoff before conversion.",
+                          ),
+                        );
+                        return;
+                      }
+                      setSelected({
+                        notes: `Verified takeoff: ${takeoff.name} (${takeoff.id})`,
+                        bomLines: takeoff.measurements
+                          .filter((m: RecordData) => m.verified)
+                          .map((m: RecordData) => ({
+                            description: `${m.label} (${m.unit})`,
+                            quantity: m.quantity,
+                            unit: [
+                              "piece",
+                              "m",
+                              "ft",
+                              "kg",
+                              "lb",
+                              "m2",
+                              "ft2",
+                              "sheet",
+                            ].includes(m.unit)
+                              ? m.unit
+                              : "custom",
+                            unitPrice: "0",
+                          })),
+                      });
+                      setView("quotations");
+                      setModal("create");
+                    }
+                  : undefined
+              }
               api={api}
               items={list.data?.items || []}
-              refresh={() => refresh((v) => v + 1)}
+              refresh={() =>
+                void queryClient.invalidateQueries({
+                  queryKey: ["list", "takeoffs", organization],
+                })
+              }
+            />
+          ) : schedule && view === "tasks" ? (
+            <Schedule
+              api={api}
+              organizationId={organization}
+              onSelect={(row) => {
+                setSelected(row);
+                setModal("detail");
+              }}
             />
           ) : view === "settings" ? (
             <section className="panel settings-panel">
-              <h2>Organization settings</h2>
+              <h2>{t("Organization settings")}</h2>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -1045,18 +1250,20 @@ function Application() {
               >
                 <div className="form-grid">
                   <label>
-                    Company name
+                    {" "}
+                    {t("Company name")}{" "}
                     <input name="name" defaultValue={org.name} required />
                   </label>
                   <label>
-                    Default language
+                    {" "}
+                    {t("Default language")}{" "}
                     <select name="locale" defaultValue={org.locale}>
-                      <option value="en">English</option>
+                      <option value="en">{t("English")}</option>
                       <option value="zh">简体中文</option>
                     </select>
                   </label>
                 </div>
-                <h3>Enabled modules</h3>
+                <h3>{t("Enabled modules")}</h3>
                 <div className="module-checkboxes">
                   {[
                     "sales",
@@ -1075,19 +1282,20 @@ function Application() {
                         value={m}
                         defaultChecked={org.modules.includes(m)}
                       />
-                      {titleCase(m)}
+                      {t(m)}
                     </label>
                   ))}
                 </div>
-                <Button className="primary mt">Save settings</Button>
+                <Button className="primary mt">{t("Save settings")}</Button>
               </form>
+              <FileSettings api={api} organizationId={organization} />
               <AIProviderSettings
                 api={api}
                 organizationId={organization}
-                onChanged={() => refresh((v) => v + 1)}
+                onChanged={() => refresh()}
               />
               <div className="record-row">
-                <span>Email delivery</span>
+                <span>{t("Email delivery")}</span>
                 <Badge
                   value={
                     me.data.capabilities.email
@@ -1097,16 +1305,18 @@ function Application() {
                 />
               </div>
               <p className="notice">
-                Email verification and password reset delivery require SMTP
-                configured by the server operator.
+                {" "}
+                {t(
+                  "Email verification and password reset delivery require SMTP configured by the server operator.",
+                )}{" "}
               </p>
-              {formError && <p className="error">{formError}</p>}
+              {formError && <p className="error">{t(formError)}</p>}
             </section>
           ) : view === "team" ? (
             <section className="panel">
-              <h2>Workspace members</h2>
+              <h2>{t("Workspace members")}</h2>
               {team.isError ? (
-                <p className="error">{team.error.message}</p>
+                <p className="error">{t(team.error.message)}</p>
               ) : (
                 (team.data || []).map((m: any) => (
                   <div className="record-row" key={m.id}>
@@ -1143,16 +1353,22 @@ function Application() {
                           "PROJECT_MANAGER",
                           "ACCOUNTANT",
                           "VIEWER",
-                        ].map((r) => <option key={r}>{r}</option>)}
+                        ].map((r) => (
+                          <option key={r} value={r}>
+                            {t(r)}
+                          </option>
+                        ))}
                     </select>
                   </div>
                 ))
               )}
               <p className="notice">
-                Roles are enforced by the API. Owners retain organization
-                control. Custom role definitions are not yet available.
+                {" "}
+                {t(
+                  "Roles are enforced by the API. Owners retain organization control. Custom role definitions are not yet available.",
+                )}{" "}
               </p>
-              {formError && <p className="error">{formError}</p>}
+              {formError && <p className="error">{t(formError)}</p>}
             </section>
           ) : (
             <section className="panel data-panel">
@@ -1160,9 +1376,9 @@ function Application() {
                 <div className="search-field">
                   <Search size={16} />
                   <input
-                    aria-label="Search records"
+                    aria-label={t("Search records")}
                     placeholder={
-                      locale === "zh" ? "搜索记录…" : "Search records…"
+                      locale === "zh" ? "搜索记录…" : t("Search records…")
                     }
                     value={search}
                     onChange={(e) => {
@@ -1175,12 +1391,13 @@ function Application() {
                   {["customers", "products", "inventory"].includes(view) &&
                     can(role, writePermission) && (
                       <Button onClick={() => setModal("import")}>
-                        Import CSV
+                        {" "}
+                        {t("Import CSV")}{" "}
                       </Button>
                     )}
                   {["projects", "tasks"].includes(view) && (
                     <Button onClick={() => setBoard(!board)}>
-                      {board ? "Table view" : "Board view"}
+                      {board ? t("Table view") : t("Board view")}
                     </Button>
                   )}
                   {view === "inventory" && can(role, "inventory:write") && (
@@ -1190,18 +1407,23 @@ function Application() {
                         setModal("transfer");
                       }}
                     >
-                      Transfer stock
+                      {" "}
+                      {t("Transfer stock")}{" "}
                     </Button>
                   )}
                   <span className="result-count">
-                    {list.data?.total || 0} records
+                    {list.data?.total || 0} {t("records")}{" "}
                   </span>
                   <Button
                     onClick={exportCSV}
-                    disabled={!list.data?.items?.length}
+                    disabled={
+                      !list.data?.items?.length ||
+                      list.isFetching ||
+                      list.isPlaceholderData ||
+                      search !== searchValue
+                    }
                   >
-                    <Download size={15} />
-                    Export page
+                    <Download size={15} /> {t("Export page")}{" "}
                   </Button>
                 </div>
               </div>
@@ -1209,8 +1431,8 @@ function Application() {
                 <div className="skeleton table-skeleton" />
               ) : list.isError ? (
                 <div className="error" role="alert">
-                  {list.error.message}
-                  <Button onClick={() => list.refetch()}>Retry</Button>
+                  {t(list.error.message)}
+                  <Button onClick={() => list.refetch()}>{t("Retry")}</Button>
                 </div>
               ) : board && ["projects", "tasks"].includes(view) ? (
                 <div className="kanban">
@@ -1219,7 +1441,7 @@ function Application() {
                     : ["TODO", "IN_PROGRESS", "DONE"]
                   ).map((status) => (
                     <section key={status}>
-                      <h3>{titleCase(status)}</h3>
+                      <h3>{t(titleCase(status))}</h3>
                       {list.data?.items
                         ?.filter((r: RecordData) => r.status === status)
                         .map((r: RecordData) => (
@@ -1234,7 +1456,7 @@ function Application() {
                             <small>
                               {r.dueDate
                                 ? new Date(r.dueDate).toLocaleDateString()
-                                : "No due date"}
+                                : t("No due date")}
                             </small>
                             {r.budget && <span>{money(r.budget)}</span>}
                           </button>
@@ -1274,11 +1496,13 @@ function Application() {
                             ]
                           : view === "payments"
                             ? ["reference", "amount", "method", "createdAt"]
-                            : ["action", "entityId", "createdAt"])
+                            : view === "credit-notes"
+                              ? ["invoiceId", "amount", "reason", "createdAt"]
+                              : ["action", "entityId", "createdAt"])
                   }
                   lookups={lookups}
                   onSelect={
-                    config[view] || kinds[view]
+                    (config[view] || kinds[view]) && !list.isPlaceholderData
                       ? (r) => {
                           setSelected(r);
                           setFormError("");
@@ -1289,19 +1513,21 @@ function Application() {
                 />
               )}
               <div className="pagination">
-                <span>Page {page} · Up to 25 records per page</span>
+                <span>
+                  {t("Page")} {page} {t("· Up to 25 records per page")}
+                </span>
                 <div className="actions">
                   <Button
                     disabled={page === 1}
                     onClick={() => setPage(page - 1)}
-                    aria-label="Previous page"
+                    aria-label={t("Previous page")}
                   >
                     <ChevronLeft size={15} />
                   </Button>
                   <Button
                     disabled={page * 25 >= (list.data?.total || 0)}
                     onClick={() => setPage(page + 1)}
-                    aria-label="Next page"
+                    aria-label={t("Next page")}
                   >
                     <ChevronRight size={15} />
                   </Button>
@@ -1310,13 +1536,130 @@ function Application() {
             </section>
           )}
           <footer className="app-footer">
-            <span>MetalFlow OS</span>
+            <span>{t("MetalFlow OS")}</span>
             <span>
-              {org.name} · {org.currency} · Tenant workspace
+              {org.name} · {org.currency} {t("· Tenant workspace")}{" "}
             </span>
           </footer>
         </main>
       </div>
+      <Modal
+        open={modal === "profile"}
+        onClose={() => setModal("")}
+        title={t("Profile settings")}
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              const f = new FormData(e.currentTarget);
+              await api("profile", "PATCH", { name: f.get("name") });
+              done();
+              refresh();
+            } catch (e) {
+              setFormError((e as Error).message);
+            }
+          }}
+        >
+          <label>
+            {t("Display name")}
+            <input
+              name="name"
+              defaultValue={me.data.user.name}
+              required
+              maxLength={100}
+            />
+          </label>
+          <p className="muted mt">{me.data.user.email}</p>
+          <Button className="primary mt">{t("Update profile")}</Button>
+          {formError && <p className="error">{t(formError)}</p>}
+        </form>
+      </Modal>
+      <Modal
+        open={modal === "shortage"}
+        onClose={() => setModal("")}
+        title={t("Purchase shortage")}
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            await act(
+              `orders/${selected?.id}/purchase-shortage`,
+              Object.fromEntries(f),
+            );
+          }}
+        >
+          <label>
+            {t("Supplier")}
+            <select name="supplierId" required>
+              {lookups.suppliers?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t("Warehouse")}
+            <select name="warehouseId" required>
+              {lookups.warehouses?.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="notice">
+            {t(
+              "Purchase drafts require price review and approval before receiving.",
+            )}
+          </p>
+          <Button className="primary mt">{t("Create purchase draft")}</Button>
+          {formError && <p className="error">{t(formError)}</p>}
+        </form>
+      </Modal>
+      <Modal
+        open={modal === "credit"}
+        onClose={() => setModal("")}
+        title={t("Issue credit note")}
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            await act("credit-notes", {
+              invoiceId: selected?.id || f.get("invoiceId"),
+              amount: f.get("amount"),
+              reason: f.get("reason"),
+              idempotencyKey: crypto.randomUUID(),
+            });
+          }}
+        >
+          {!selected && (
+            <label>
+              {t("Issued invoice ID")}
+              <input name="invoiceId" required />
+            </label>
+          )}
+          <label>
+            {t("Credit amount")}
+            <input
+              name="amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+            />
+          </label>
+          <label>
+            {t("Credit reason")}
+            <input name="reason" minLength={5} required />
+          </label>
+          {formError && <p className="error">{t(formError)}</p>}
+          <Button className="primary mt">{t("Issue credit note")}</Button>
+        </form>
+      </Modal>
       <Modal
         open={modal === "import"}
         onClose={() => setModal("")}
@@ -1333,14 +1676,18 @@ function Application() {
         open={modal === "appearance"}
         onClose={() => setModal("")}
         title={
-          locale === "zh" ? "外观与莫兰迪配色" : "Appearance & Morandi palettes"
+          locale === "zh"
+            ? "外观与莫兰迪配色"
+            : t("Appearance & Morandi palettes")
         }
         wide
       >
         <p className="muted">
           {locale === "zh"
             ? "低饱和色彩，清晰的数据层次。配色与明暗模式可独立选择。"
-            : "Muted colors, clear information. Choose a palette and light or dark mode independently."}
+            : t(
+                "Muted colors, clear information. Choose a palette and light or dark mode independently.",
+              )}
         </p>
         <div className="appearance-mode mt">
           <Button
@@ -1348,17 +1695,17 @@ function Application() {
             onClick={() => setTheme("light")}
           >
             <Sun size={16} />
-            {locale === "zh" ? "浅色" : "Light"}
+            {locale === "zh" ? "浅色" : t("Light")}
           </Button>
           <Button
             aria-pressed={theme === "dark"}
             onClick={() => setTheme("dark")}
           >
             <Moon size={16} />
-            {locale === "zh" ? "深色" : "Dark"}
+            {locale === "zh" ? "深色" : t("Dark")}
           </Button>
         </div>
-        <fieldset className="theme-options" aria-label="Color palette">
+        <fieldset className="theme-options" aria-label={t("Color palette")}>
           {palettes.map((p) => (
             <label className="theme-option" key={p.id}>
               <input
@@ -1383,36 +1730,40 @@ function Application() {
         </fieldset>
         <div className="theme-example">
           <strong>
-            {locale === "zh" ? "工作区预览" : "Workspace preview"}
+            {locale === "zh" ? "工作区预览" : t("Workspace preview")}
           </strong>
           <p>
             {locale === "zh"
               ? "主题将应用于所有模块，并在此浏览器自动保存。"
-              : "Applies across every module and saves automatically in this browser."}
+              : t(
+                  "Applies across every module and saves automatically in this browser.",
+                )}
           </p>
           <div className="actions">
             <Button className="primary" onClick={() => setModal("")}>
-              {locale === "zh" ? "完成" : "Done"}
+              {locale === "zh" ? "完成" : t("Done")}
             </Button>
             <Badge value="APPROVED" />
-            <span className="muted">INV-2026 · {money("1240")}</span>
+            <span className="muted">
+              {t("INV-2026 ·")} {money("1240")}
+            </span>
           </div>
         </div>
       </Modal>
       <Modal
         open={modal === "command"}
         onClose={() => setModal("")}
-        title="Find anything in your workspace"
+        title={t("Find anything in your workspace")}
       >
         <div className="command-input">
           <Search size={18} />
           <input
             autoFocus
-            placeholder="Search pages, customers, products, inquiries…"
+            placeholder={t("Search pages, customers, products, inquiries…")}
             value={palette}
             onChange={(e) => setPalette(e.target.value)}
           />
-          <kbd>Esc</kbd>
+          <kbd>{t("Esc")}</kbd>
         </div>
         <div className="command-results">
           {groups
@@ -1448,12 +1799,12 @@ function Application() {
       <Modal
         open={modal === "notifications"}
         onClose={() => setModal("")}
-        title="Activity notifications"
+        title={t("Activity notifications")}
       >
         {notifications.isPending ? (
-          <p className="muted">Loading activity…</p>
+          <p className="muted">{t("Loading activity…")}</p>
         ) : notifications.isError ? (
-          <p className="error">{notifications.error.message}</p>
+          <p className="error">{t(notifications.error.message)}</p>
         ) : notifications.data?.length ? (
           notifications.data.map((item: RecordData) => (
             <div key={item.id} className="activity-row">
@@ -1467,8 +1818,8 @@ function Application() {
           ))
         ) : (
           <Empty
-            title="No activity yet"
-            description="Workspace actions will appear here."
+            title={t("No activity yet")}
+            description={t("Workspace actions will appear here.")}
           />
         )}
       </Modal>
@@ -1476,7 +1827,9 @@ function Application() {
         open={modal === "create"}
         onClose={() => setModal("")}
         title={
-          view === "team" ? "Invite a teammate" : `New ${title.toLowerCase()}`
+          view === "team"
+            ? t("Invite a teammate")
+            : `New ${title.toLowerCase()}`
         }
         wide={!!kinds[view]}
       >
@@ -1491,7 +1844,9 @@ function Application() {
         ) : kinds[view] ? (
           <DocumentForm
             view={view}
-            source={selected?.subject ? selected : undefined}
+            source={
+              selected?.subject || selected?.bomLines ? selected : undefined
+            }
             lookups={lookups}
             api={api}
             done={done}
@@ -1525,11 +1880,12 @@ function Application() {
             {view === "team" ? (
               <>
                 <label>
-                  Email
-                  <input name="email" type="email" required />
+                  {" "}
+                  {t("Email")} <input name="email" type="email" required />
                 </label>
                 <label>
-                  Role
+                  {" "}
+                  {t("Role")}{" "}
                   <select name="role">
                     {[
                       "ADMIN",
@@ -1542,7 +1898,9 @@ function Application() {
                       "ACCOUNTANT",
                       "VIEWER",
                     ].map((r) => (
-                      <option key={r}>{r}</option>
+                      <option key={r} value={r}>
+                        {t(r)}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -1550,7 +1908,8 @@ function Application() {
             ) : view === "inventory" ? (
               <>
                 <label>
-                  Product
+                  {" "}
+                  {t("Product")}{" "}
                   <select name="productId" required>
                     {lookups.products?.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1560,7 +1919,8 @@ function Application() {
                   </select>
                 </label>
                 <label>
-                  Warehouse
+                  {" "}
+                  {t("Warehouse")}{" "}
                   <select name="warehouseId" required>
                     {lookups.warehouses?.map((w) => (
                       <option key={w.id} value={w.id}>
@@ -1570,22 +1930,24 @@ function Application() {
                   </select>
                 </label>
                 <label>
-                  Quantity change
+                  {" "}
+                  {t("Quantity change")}{" "}
                   <input name="quantity" type="number" step="0.0001" required />
                 </label>
                 <label>
-                  Reason
-                  <input name="reason" minLength={5} required />
+                  {" "}
+                  {t("Reason")} <input name="reason" minLength={5} required />
                 </label>
               </>
             ) : (
               <>
                 <label>
-                  Issued invoice ID
-                  <input name="invoiceId" required />
+                  {" "}
+                  {t("Issued invoice ID")} <input name="invoiceId" required />
                 </label>
                 <label>
-                  Amount
+                  {" "}
+                  {t("Amount")}{" "}
                   <input
                     name="amount"
                     type="number"
@@ -1595,22 +1957,25 @@ function Application() {
                   />
                 </label>
                 <label>
-                  Reference
-                  <input name="reference" required />
+                  {" "}
+                  {t("Reference")} <input name="reference" required />
                 </label>
                 <label>
-                  Method
+                  {" "}
+                  {t("Method")}{" "}
                   <select name="method">
                     {["BANK", "CASH", "CARD", "OTHER"].map((m) => (
-                      <option key={m}>{m}</option>
+                      <option key={m} value={m}>
+                        {t(m)}
+                      </option>
                     ))}
                   </select>
                 </label>
               </>
             )}
-            {formError && <p className="error">{formError}</p>}
+            {formError && <p className="error">{t(formError)}</p>}
             <Button className="primary mt">
-              {view === "team" ? "Create invitation link" : "Save"}
+              {view === "team" ? t("Create invitation link") : t("Save")}
             </Button>
           </form>
         )}
@@ -1618,7 +1983,7 @@ function Application() {
       <Modal
         open={modal === "edit-document"}
         onClose={() => setModal("")}
-        title="Revise draft"
+        title={t("Revise draft")}
         wide
       >
         {selected && (
@@ -1634,7 +1999,7 @@ function Application() {
       <Modal
         open={modal === "transfer"}
         onClose={() => setModal("")}
-        title="Transfer stock"
+        title={t("Transfer stock")}
       >
         <form
           onSubmit={async (e) => {
@@ -1647,7 +2012,8 @@ function Application() {
           }}
         >
           <label>
-            Product
+            {" "}
+            {t("Product")}{" "}
             <select name="productId" required>
               {lookups.products?.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -1658,7 +2024,7 @@ function Application() {
           </label>
           {["fromWarehouseId", "toWarehouseId"].map((key, i) => (
             <label key={key}>
-              {i ? "Destination warehouse" : "Source warehouse"}
+              {i ? t("Destination warehouse") : t("Source warehouse")}
               <select name={key} required>
                 {lookups.warehouses?.map((w) => (
                   <option key={w.id} value={w.id}>
@@ -1669,7 +2035,8 @@ function Application() {
             </label>
           ))}
           <label>
-            Quantity
+            {" "}
+            {t("Quantity")}{" "}
             <input
               name="quantity"
               type="number"
@@ -1679,11 +2046,11 @@ function Application() {
             />
           </label>
           <label>
-            Reason
-            <input name="reason" minLength={5} required />
+            {" "}
+            {t("Reason")} <input name="reason" minLength={5} required />
           </label>
-          {formError && <p className="error">{formError}</p>}
-          <Button className="primary mt">Confirm transfer</Button>
+          {formError && <p className="error">{t(formError)}</p>}
+          <Button className="primary mt">{t("Confirm transfer")}</Button>
         </form>
       </Modal>
       <Modal
@@ -1705,16 +2072,17 @@ function Application() {
                 <Badge value={selected.status} />
                 <strong>{money(selected.total)}</strong>
                 <small>
-                  Version {selected.version} · {selected.currency}
+                  {" "}
+                  {t("Version")} {selected.version} · {selected.currency}
                 </small>
               </div>
               <div className="table-scroll">
                 <table>
                   <thead>
                     <tr>
-                      <th>Description</th>
-                      <th>Quantity</th>
-                      <th>Unit price</th>
+                      <th>{t("Description")}</th>
+                      <th>{t("Quantity")}</th>
+                      <th>{t("Unit price")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1732,11 +2100,20 @@ function Application() {
               </div>
               <p className="muted">{selected.notes}</p>
               <div className="actions wrap">
+                {selected.kind === "INVOICE" &&
+                  ["ISSUED", "PARTIALLY_PAID"].includes(selected.status) &&
+                  can(role, "finance:write") && (
+                    <Button onClick={() => setModal("credit")}>
+                      {t("Issue credit note")}
+                    </Button>
+                  )}
+
                 {selected.status === "DRAFT" &&
                   !selected.sourceId &&
                   can(role, writePermission) && (
                     <Button onClick={() => setModal("edit-document")}>
-                      Edit draft
+                      {" "}
+                      {t("Edit draft")}{" "}
                     </Button>
                   )}
 
@@ -1771,7 +2148,7 @@ function Application() {
                           act(`documents/${selected.id}/status`, { status: s })
                         }
                       >
-                        {titleCase(s)}
+                        {t(titleCase(s))}
                       </Button>
                     ))}
                 {selected.kind === "ORDER" &&
@@ -1785,7 +2162,8 @@ function Application() {
                         })
                       }
                     >
-                      Confirm order
+                      {" "}
+                      {t("Confirm order")}{" "}
                     </Button>
                   )}
                 {selected.kind === "INVOICE" &&
@@ -1799,7 +2177,8 @@ function Application() {
                         })
                       }
                     >
-                      Issue invoice
+                      {" "}
+                      {t("Issue invoice")}{" "}
                     </Button>
                   )}
                 {selected.kind === "QUOTATION" &&
@@ -1813,7 +2192,8 @@ function Application() {
                         })
                       }
                     >
-                      Convert to sales order
+                      {" "}
+                      {t("Convert to sales order")}{" "}
                     </Button>
                   )}
                 {selected.kind === "ORDER" &&
@@ -1832,7 +2212,8 @@ function Application() {
                         })
                       }
                     >
-                      Create invoice
+                      {" "}
+                      {t("Create invoice")}{" "}
                     </Button>
                   )}
                 {selected.kind === "QUOTATION" && can(role, "sales:write") && (
@@ -1841,7 +2222,8 @@ function Application() {
                       act(`documents/${selected.id}/duplicate`, {})
                     }
                   >
-                    Duplicate
+                    {" "}
+                    {t("Duplicate")}{" "}
                   </Button>
                 )}
                 <Button
@@ -1858,8 +2240,7 @@ function Application() {
                     }
                   }}
                 >
-                  <Download size={15} />
-                  Download PDF
+                  <Download size={15} /> {t("Download PDF")}{" "}
                 </Button>
               </div>
               {((selected.kind === "ORDER" &&
@@ -1909,13 +2290,14 @@ function Application() {
                 >
                   <h3>
                     {selected.kind === "PURCHASE"
-                      ? "Receive materials"
+                      ? t("Receive materials")
                       : selected.status === "CONFIRMED"
-                        ? "Reserve stock"
-                        : "Fulfill order"}
+                        ? t("Reserve stock")
+                        : t("Fulfill order")}
                   </h3>
                   <label>
-                    Warehouse
+                    {" "}
+                    {t("Warehouse")}{" "}
                     <select name="warehouseId">
                       {lookups.warehouses?.map((w) => (
                         <option key={w.id} value={w.id}>
@@ -1929,7 +2311,7 @@ function Application() {
                       .filter((l: any) => l.productId)
                       .map((l: any, i: number) => (
                         <label key={i}>
-                          {l.description} · quantity
+                          {l.description} {t("· quantity")}{" "}
                           <input
                             type="number"
                             name={`qty${i}`}
@@ -1940,7 +2322,8 @@ function Application() {
                         </label>
                       ))}
                   <Button className="primary mt">
-                    Confirm stock operation
+                    {" "}
+                    {t("Confirm stock operation")}{" "}
                   </Button>
                 </form>
               )}
@@ -1961,10 +2344,13 @@ function Application() {
                       });
                     }}
                   >
-                    <h3>Record payment</h3>
-                    <p>Paid: {money(selected.paid)}</p>
+                    <h3>{t("Record payment")}</h3>
+                    <p>
+                      {t("Paid:")} {money(selected.paid)}
+                    </p>
                     <label>
-                      Amount
+                      {" "}
+                      {t("Amount")}{" "}
                       <input
                         name="amount"
                         type="number"
@@ -1974,13 +2360,15 @@ function Application() {
                       />
                     </label>
                     <label>
-                      Bank reference
-                      <input name="reference" required />
+                      {" "}
+                      {t("Bank reference")} <input name="reference" required />
                     </label>
-                    <Button className="primary mt">Confirm payment</Button>
+                    <Button className="primary mt">
+                      {t("Confirm payment")}
+                    </Button>
                   </form>
                 )}
-              {formError && <p className="error">{formError}</p>}
+              {formError && <p className="error">{t(formError)}</p>}
             </>
           ) : (
             <>
@@ -1993,7 +2381,8 @@ function Application() {
                       act(`change-orders/${selected.id}/approve`, {})
                     }
                   >
-                    Approve budget change
+                    {" "}
+                    {t("Approve budget change")}{" "}
                   </Button>
                 )}
               {view === "inquiries" && (
@@ -2001,7 +2390,7 @@ function Application() {
                   <div className="source-text">{selected.text}</div>
                   {selected.extraction && (
                     <div className="notice">
-                      <strong>Human review required</strong>
+                      <strong>{t("Human review required")}</strong>
                       <pre>{JSON.stringify(selected.extraction, null, 2)}</pre>
                       <Button
                         onClick={async () => {
@@ -2012,7 +2401,8 @@ function Application() {
                           done();
                         }}
                       >
-                        Confirm reviewed extraction
+                        {" "}
+                        {t("Confirm reviewed extraction")}{" "}
                       </Button>
                     </div>
                   )}
@@ -2027,9 +2417,8 @@ function Application() {
                         })
                       }
                     >
-                      <Sparkles size={15} />
-                      Extract with AI
-                      {!me.data.capabilities.ai ? " · not configured" : ""}
+                      <Sparkles size={15} /> {t("Extract with AI")}{" "}
+                      {!me.data.capabilities.ai ? t(" · not configured") : ""}
                     </Button>
                     <Button
                       className="primary"
@@ -2039,7 +2428,8 @@ function Application() {
                         setModal("create");
                       }}
                     >
-                      Create quotation
+                      {" "}
+                      {t("Create quotation")}{" "}
                     </Button>
                   </div>
                 </>

@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "../lib/i18n";
 import { useState } from "react";
 import { parseCSV } from "../../../packages/shared/src/csv";
 import { Button } from "./ui";
@@ -15,6 +16,8 @@ export function Importer({
   api: API;
   done: () => void;
 }) {
+  const { t } = useI18n();
+
   const [rows, setRows] = useState<Record<string, string>[]>([]),
     [error, setError] = useState(""),
     [warehouseId, setWarehouse] = useState(warehouses[0]?.id || ""),
@@ -30,16 +33,18 @@ export function Importer({
   return (
     <>
       <p className="notice">
-        Maximum 500 rows / 1 MiB. The whole import is transactional. Duplicate
-        customers are rejected, never silently merged. Inventory imports add
-        opening or received quantities.
+        {" "}
+        {t(
+          "Maximum 500 rows / 1 MiB. The whole import is transactional. Duplicate customers are rejected, never silently merged. Inventory imports add opening or received quantities.",
+        )}{" "}
       </p>
       <details>
-        <summary>CSV format</summary>
+        <summary>{t("CSV format")}</summary>
         <pre>{examples[resource]}</pre>
       </details>
       <label>
-        CSV file
+        {" "}
+        {t("CSV file")}{" "}
         <input
           type="file"
           accept=".csv,text/csv"
@@ -47,6 +52,7 @@ export function Importer({
             try {
               const f = e.target.files?.[0];
               if (!f) return;
+              if (f.size > 1024 * 1024) throw Error("CSV exceeds 1 MiB");
               setRows(parseCSV(await f.text()));
               setError("");
             } catch (e) {
@@ -58,7 +64,8 @@ export function Importer({
       </label>
       {resource === "inventory" && (
         <label>
-          Warehouse
+          {" "}
+          {t("Warehouse")}{" "}
           <select
             value={warehouseId}
             onChange={(e) => setWarehouse(e.target.value)}
@@ -73,23 +80,41 @@ export function Importer({
       )}
       {!!rows.length && (
         <>
-          <h3 className="mt">Review {rows.length} rows</h3>
+          <h3 className="mt">
+            {t("Review")} {rows.length} {t("rows")}
+          </h3>
           <pre>{JSON.stringify(rows.slice(0, 5), null, 2)}</pre>
-          <p className="muted">Preview shows the first 5 rows.</p>
+          <p className="muted">{t("Preview shows the first 5 rows.")}</p>
         </>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error">{t(error)}</p>}
       <Button
         className="primary mt"
         disabled={!rows.length || busy}
         onClick={async () => {
           setBusy(true);
           try {
+            const fingerprint = Array.from(
+              new Uint8Array(
+                await crypto.subtle.digest(
+                  "SHA-256",
+                  new TextEncoder().encode(
+                    JSON.stringify({ resource, warehouseId, rows }),
+                  ),
+                ),
+              ),
+            )
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join("");
+            const pendingKey = `metalflow.import.${localStorage.getItem("metalflow.org")}.${fingerprint}`;
+            const retryKey = sessionStorage.getItem(pendingKey) || key;
+            sessionStorage.setItem(pendingKey, retryKey);
             await api(`imports/${resource}`, "POST", {
               rows,
               warehouseId: resource === "inventory" ? warehouseId : undefined,
-              idempotencyKey: key,
+              idempotencyKey: retryKey,
             });
+            sessionStorage.removeItem(pendingKey);
             done();
           } catch (e) {
             setError((e as Error).message);
@@ -98,7 +123,7 @@ export function Importer({
           }
         }}
       >
-        {busy ? "Importing…" : `Confirm import (${rows.length})`}
+        {busy ? t("Importing…") : t(`Confirm import (${rows.length})`)}
       </Button>
     </>
   );

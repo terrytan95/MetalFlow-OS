@@ -1,6 +1,8 @@
 "use client";
+import { useI18n } from "../lib/i18n";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
+import { RecordSelect } from "./record-select";
 import { Plus, Trash2 } from "lucide-react";
 import { Decimal } from "decimal.js";
 import { config, type RecordData, kinds } from "./data";
@@ -25,6 +27,8 @@ export function ResourceForm({
   api: API;
   done: () => void;
 }) {
+  const { t } = useI18n();
+
   const fields = config[resource].fields.filter(
     (f) => showCost || f.key !== "cost",
   );
@@ -32,18 +36,21 @@ export function ResourceForm({
     fields.map((f) => [
       f.key,
       record?.[f.key] !== undefined
-        ? f.type === "json"
-          ? JSON.stringify(record[f.key])
-          : f.type === "date"
-            ? record[f.key]?.slice(0, 10)
-            : record[f.key]
+        ? f.type === "tags"
+          ? record[f.key].join(", ")
+          : f.type === "json"
+            ? JSON.stringify(record[f.key])
+            : f.type === "date"
+              ? record[f.key]?.slice(0, 10)
+              : record[f.key]
         : f.default || f.options?.[0] || "",
     ]),
   );
   const {
     register,
+    control,
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm({ defaultValues: initial });
   const [error, setError] = useState("");
   return (
@@ -55,11 +62,16 @@ export function ResourceForm({
             const v = values[f.key];
             if (v !== "") {
               data[f.key] =
-                f.type === "date"
-                  ? new Date(v + "T12:00:00Z").toISOString()
-                  : f.type === "json"
-                    ? JSON.parse(v)
-                    : v;
+                f.type === "tags"
+                  ? String(v)
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  : f.type === "date"
+                    ? new Date(v + "T12:00:00Z").toISOString()
+                    : f.type === "json"
+                      ? JSON.parse(v)
+                      : v;
             }
           }
           await api(
@@ -81,18 +93,33 @@ export function ResourceForm({
               f.type === "textarea" || f.type === "json" ? "span-2" : ""
             }
           >
-            {f.label}
+            {t(f.label)}
             {f.required && <span className="required"> *</span>}
-            {f.options || f.resource ? (
-              <select {...register(f.key, { required: f.required })}>
-                <option value="">Select…</option>
-                {(f.resource ? lookups[f.resource] || [] : f.options || []).map(
-                  (o: any) => (
-                    <option key={o.id || o} value={o.id || o}>
-                      {o.name || o.subject || o}
-                    </option>
-                  ),
+            {f.resource ? (
+              <Controller
+                name={f.key}
+                control={control}
+                rules={{ required: f.required }}
+                render={({ field }) => (
+                  <RecordSelect
+                    resource={f.resource!}
+                    label={t(f.label)}
+                    api={api}
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={lookups[f.resource!] || []}
+                    required={f.required}
+                  />
                 )}
+              />
+            ) : f.options ? (
+              <select {...register(f.key, { required: f.required })}>
+                <option value="">{t("Select…")}</option>
+                {f.options.map((o) => (
+                  <option key={o} value={o}>
+                    {t(o)}
+                  </option>
+                ))}
               </select>
             ) : f.type === "textarea" || f.type === "json" ? (
               <textarea
@@ -101,23 +128,28 @@ export function ResourceForm({
               />
             ) : (
               <input
-                type={f.type || "text"}
+                type={f.type === "tags" ? "text" : f.type || "text"}
                 step="0.0001"
                 min={f.type === "number" ? "0" : undefined}
                 {...register(f.key, { required: f.required })}
               />
+            )}
+            {errors[f.key] && (
+              <small className="field-error" role="alert">
+                {t("Required")}
+              </small>
             )}
           </label>
         ))}
       </div>
       {error && (
         <p role="alert" className="error">
-          {error}
+          {t(error)}
         </p>
       )}
       <div className="form-footer">
         <Button className="primary" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : "Save record"}
+          {isSubmitting ? t("Saving…") : t("Save record")}
         </Button>
       </div>
     </form>
@@ -145,6 +177,8 @@ export function DocumentForm({
   source?: RecordData;
   record?: RecordData;
 }) {
+  const { t } = useI18n();
+
   const kind = kinds[view],
     purchase = kind === "PURCHASE";
   const [party, setParty] = useState(
@@ -153,13 +187,14 @@ export function DocumentForm({
       "",
   );
   const [lines, setLines] = useState<QuoteLine[]>(
-    record?.lines || [
-      { description: "", quantity: "1", unit: "piece", unitPrice: "0" },
-    ],
+    record?.lines ||
+      source?.bomLines || [
+        { description: "", quantity: "1", unit: "piece", unitPrice: "0" },
+      ],
   );
   const [discount, setDiscount] = useState(record?.discount || "0"),
     [tax, setTax] = useState(record?.taxRate || "0"),
-    [notes, setNotes] = useState(record?.notes || ""),
+    [notes, setNotes] = useState(record?.notes || source?.notes || ""),
     [valid, setValid] = useState(
       (record?.validUntil || record?.dueDate || "").slice(0, 10),
     ),
@@ -194,7 +229,7 @@ export function DocumentForm({
             {
               kind,
               [purchase ? "supplierId" : "customerId"]: party,
-              ...(source ? { inquiryId: source.id } : {}),
+              ...(source?.subject ? { inquiryId: source.id } : {}),
               lines,
               discount,
               taxRate: tax,
@@ -218,22 +253,19 @@ export function DocumentForm({
     >
       <div className="form-grid">
         <label>
-          {purchase ? "Supplier" : "Customer"}
-          <select
-            required
+          {purchase ? t("Supplier") : t("Customer")}
+          <RecordSelect
+            resource={purchase ? "suppliers" : "customers"}
+            label={t(purchase ? "Supplier" : "Customer")}
+            api={api}
             value={party}
-            onChange={(e) => setParty(e.target.value)}
-          >
-            <option value="">Select…</option>
-            {(lookups[purchase ? "suppliers" : "customers"] || []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={setParty}
+            options={lookups[purchase ? "suppliers" : "customers"] || []}
+            required
+          />
         </label>
         <label>
-          {kind === "QUOTATION" ? "Valid until" : "Due date"}
+          {kind === "QUOTATION" ? t("Valid until") : t("Due date")}
           <input
             type="date"
             value={valid}
@@ -241,41 +273,37 @@ export function DocumentForm({
           />
         </label>
       </div>
-      <h3 className="section-title">Materials & services</h3>
+      <h3 className="section-title">{t("Materials & services")}</h3>
       <div className="quote-lines">
         {lines.map((l, i) => (
           <div key={i} className="quote-line">
             <label>
-              Catalog product
-              <select
+              {" "}
+              {t("Catalog product")}{" "}
+              <RecordSelect
+                resource="products"
+                label={t("Catalog product")}
+                api={api}
                 value={l.productId || ""}
-                onChange={(e) => {
-                  const p = lookups.products?.find(
-                    (p) => p.id === e.target.value,
-                  );
+                options={lookups.products || []}
+                onChange={(id, p) =>
                   update(
                     i,
                     p
                       ? {
-                          productId: p.id,
+                          productId: id,
                           description: p.name,
                           unit: p.unit,
                           unitPrice: purchase ? p.cost || "0" : p.price,
                         }
                       : { productId: undefined },
-                  );
-                }}
-              >
-                <option value="">Custom line</option>
-                {lookups.products?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.sku} · {p.name}
-                  </option>
-                ))}
-              </select>
+                  )
+                }
+              />
             </label>
             <label>
-              Description
+              {" "}
+              {t("Description")}{" "}
               <input
                 required
                 value={l.description}
@@ -284,7 +312,8 @@ export function DocumentForm({
             </label>
             <div className="line-numbers">
               <label>
-                Quantity
+                {" "}
+                {t("Quantity")}{" "}
                 <input
                   required
                   type="number"
@@ -295,7 +324,8 @@ export function DocumentForm({
                 />
               </label>
               <label>
-                Unit
+                {" "}
+                {t("Unit")}{" "}
                 <select
                   value={l.unit}
                   disabled={!!l.productId}
@@ -312,12 +342,15 @@ export function DocumentForm({
                     "sheet",
                     "custom",
                   ].map((v) => (
-                    <option key={v}>{v}</option>
+                    <option key={v} value={v}>
+                      {t(v)}
+                    </option>
                   ))}
                 </select>
               </label>
               <label>
-                Unit price
+                {" "}
+                {t("Unit price")}{" "}
                 <input
                   required
                   type="number"
@@ -329,7 +362,7 @@ export function DocumentForm({
               </label>
               <Button
                 type="button"
-                aria-label="Remove line"
+                aria-label={t("Remove line")}
                 disabled={lines.length === 1}
                 onClick={() => setLines(lines.filter((_, j) => j !== i))}
               >
@@ -348,12 +381,30 @@ export function DocumentForm({
           ])
         }
       >
-        <Plus size={15} />
-        Add line
+        <Plus size={15} /> {t("Add line")}{" "}
       </Button>
+      <label>
+        {t("Tax rates")}
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            if (e.target.value) setTax(e.target.value);
+          }}
+        >
+          <option value="">{t("Select…")}</option>
+          {(lookups["tax-rates"] || [])
+            .filter((r) => r.active)
+            .map((r) => (
+              <option value={r.rate} key={r.id}>
+                {r.name} · {r.rate}%
+              </option>
+            ))}
+        </select>
+      </label>
       <div className="form-grid mt">
         <label>
-          Discount amount
+          {" "}
+          {t("Discount amount")}{" "}
           <input
             type="number"
             min="0"
@@ -363,7 +414,8 @@ export function DocumentForm({
           />
         </label>
         <label>
-          Tax rate (%)
+          {" "}
+          {t("Tax rate (%)")}{" "}
           <input
             type="number"
             min="0"
@@ -374,22 +426,27 @@ export function DocumentForm({
           />
         </label>
         <label className="span-2">
-          Terms & notes
+          {" "}
+          {t("Terms & notes")}{" "}
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
         </label>
       </div>
       <div className="totals">
-        <span>Subtotal {subtotal.toFixed(2)}</span>
-        <strong>Total {total.toFixed(2)}</strong>
+        <span>
+          {t("Subtotal")} {subtotal.toFixed(2)}
+        </span>
+        <strong>
+          {t("Total")} {total.toFixed(2)}
+        </strong>
       </div>
       {error && (
         <p className="error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
       <div className="form-footer">
         <Button className="primary" disabled={busy}>
-          {busy ? "Saving…" : "Save draft"}
+          {busy ? t("Saving…") : t("Save draft")}
         </Button>
       </div>
     </form>

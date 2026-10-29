@@ -1,3 +1,6 @@
+import { documentLabel } from "../../../packages/shared/src/document-labels.js";
+import { issueCredit } from "./finance.js";
+import { analyticsReport } from "./analytics.js";
 import {
   capabilities,
   resolveProvider,
@@ -10,6 +13,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Query,
   Req,
@@ -28,9 +32,10 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { Decimal } from "decimal.js";
 import { randomBytes, createHash } from "node:crypto";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 import { fileTypeFromBuffer } from "file-type";
@@ -48,6 +53,7 @@ import { context, session, owned, serial, audit, json } from "./context.js";
 import { resources, schemas, inviteSchema } from "./resources.js";
 import {
   createDocument,
+  shortagePurchase,
   transferStock,
   transition,
   convertDocument,
@@ -60,8 +66,8 @@ const queue = new Queue("metalflow-ai", {
   connection: { url: process.env.REDIS_URL || "redis://127.0.0.1:6379" },
 });
 function page(q: Record<string, string>) {
-  const n = Math.max(1, Math.min(100000, Number(q.page) || 1)),
-    take = Math.min(100, Math.max(1, Number(q.limit) || 25));
+  const n = Math.max(1, Math.min(100000, Math.floor(Number(q.page)) || 1)),
+    take = Math.min(100, Math.max(1, Math.floor(Number(q.limit)) || 25));
   return { skip: (n - 1) * take, take, page: n };
 }
 function delegate(model: string, client: unknown = db) {
@@ -306,7 +312,7 @@ export class AppController {
         where,
         skip: p.skip,
         take: p.take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       db.document.count({ where }),
     ]);
@@ -349,18 +355,23 @@ export class AppController {
       });
       if (!d || d.status !== "DRAFT" || d.kind !== x.kind || d.sourceId)
         throw new ConflictException("Only original drafts can be edited");
+      const products = await tx.product.findMany({
+        where: {
+          organizationId: c.organizationId,
+          id: {
+            in: [
+              ...new Set(
+                x.lines.flatMap((l) => (l.productId ? [l.productId] : [])),
+              ),
+            ],
+          },
+        },
+        select: { id: true, unit: true },
+      });
+      const byId = new Map(products.map((p) => [p.id, p]));
       for (const l of x.lines)
-        if (l.productId) {
-          const product = await tx.product.findFirst({
-            where: {
-              id: l.productId,
-              organizationId: c.organizationId,
-              unit: l.unit,
-            },
-          });
-          if (!product)
-            throw new BadRequestException("Invalid product or unit");
-        }
+        if (l.productId && byId.get(l.productId)?.unit !== l.unit)
+          throw new BadRequestException("Invalid product or unit");
       if (d.inquiryId && x.customerId !== d.customerId)
         throw new ConflictException(
           "An inquiry-linked draft cannot change customer",
@@ -457,6 +468,11 @@ export class AppController {
     @Res() res: Response,
   ) {
     const c = await context(req);
+    const label = (text: string) =>
+      documentLabel(
+        text,
+        req.header("accept-language")?.startsWith("zh") || false,
+      );
     const d = await db.document.findFirst({
       where: { id, organizationId: c.organizationId },
     });
@@ -497,29 +513,47 @@ export class AppController {
       .fontSize(23)
       .text(org.name)
       .fontSize(11)
-      .text(`${d.kind} ${d.number} · ${d.status}`)
+      .text(`${label(d.kind)} ${d.number} · ${label(d.status)}`)
       .moveDown()
-      .text(`Customer / supplier: ${party?.name || ""}`)
-      .text(`Date: ${d.createdAt.toISOString().slice(0, 10)} · ${d.currency}`)
+      .text(`${label("Customer / supplier")}: ${party?.name || ""}`)
+      .text(
+        `${label("Date")}: ${d.createdAt.toISOString().slice(0, 10)} · ${d.currency}`,
+      )
       .moveDown();
     for (const l of d.lines as Line[])
       pdf
         .text(
-          `${l.description} | ${l.quantity} ${l.unit} × ${l.unitPrice} = ${new Decimal(l.quantity).mul(l.unitPrice).toFixed(2)}`,
+          `${l.description} | ${l.quantity} ${label(l.unit)} × ${l.unitPrice} = ${new Decimal(l.quantity).mul(l.unitPrice).toFixed(2)}`,
         )
         .moveDown(0.5);
     pdf
       .moveDown()
-      .text(`Subtotal: ${d.subtotal}`)
-      .text(`Discount: ${d.discount}`)
-      .text(`Tax (${d.taxRate}%): ${d.tax}`)
+      .text(`${label("Subtotal")}: ${d.subtotal}`)
+      .text(`${label("Discount")}: ${d.discount}`)
+      .text(`${label("Tax")} (${d.taxRate}%): ${d.tax}`)
       .fontSize(16)
-      .text(`Total: ${d.currency} ${d.total}`)
+      .text(`${label("Total")}: ${d.currency} ${d.total}`)
       .fontSize(10)
+      .text(`${label("Credited")}: ${d.credited} · ${label("Paid")}: ${d.paid}`)
       .moveDown()
       .text(d.notes);
     pdf.end();
     res.send(await finished);
+  }
+  @Post("orders/:id/purchase-shortage") async purchaseShortage(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() raw: unknown,
+  ) {
+    const x = z
+      .object({ supplierId: z.string(), warehouseId: z.string() })
+      .parse(raw);
+    return shortagePurchase(
+      await context(req, "purchase:write"),
+      id,
+      x.supplierId,
+      x.warehouseId,
+    );
   }
   @Post("orders/:id/reserve") async reservation(
     @Req() req: Request,
@@ -546,6 +580,64 @@ export class AppController {
   @Post("payments") async payment(@Req() req: Request, @Body() raw: unknown) {
     return recordPayment(await context(req, "finance:write"), raw);
   }
+  @Post("credit-notes") async credit(
+    @Req() req: Request,
+    @Body() raw: unknown,
+  ) {
+    return issueCredit(await context(req, "finance:write"), raw);
+  }
+  @Get("credit-notes") async credits(
+    @Req() req: Request,
+    @Query() q: Record<string, string>,
+  ) {
+    const c = await context(req, "finance:read"),
+      p = page(q);
+    const where = { organizationId: c.organizationId };
+    const [items, total] = await Promise.all([
+      db.creditNote.findMany({
+        where,
+        take: p.take,
+        skip: p.skip,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+      db.creditNote.count({ where }),
+    ]);
+    return { items, total, page: p.page };
+  }
+  @Patch("profile") async profile(@Req() req: Request, @Body() raw: unknown) {
+    const s = await session(req),
+      x = z.object({ name: z.string().trim().min(1).max(100) }).parse(raw);
+    return db.user.update({
+      where: { id: s.user.id },
+      data: x,
+      select: { id: true, name: true, email: true },
+    });
+  }
+  @Get("schedule") async schedule(
+    @Req() req: Request,
+    @Query() q: Record<string, string>,
+  ) {
+    const c = await context(req);
+    const from = new Date(q.from),
+      to = new Date(q.to);
+    if (
+      !Number.isFinite(+from) ||
+      !Number.isFinite(+to) ||
+      to < from ||
+      +to - +from > 62 * 86400000
+    )
+      throw new BadRequestException("Invalid schedule dates");
+    return {
+      items: await db.task.findMany({
+        where: {
+          organizationId: c.organizationId,
+          dueDate: { gte: from, lte: to },
+        },
+        orderBy: { dueDate: "asc" },
+        take: 1000,
+      }),
+    };
+  }
   @Get("payments") async payments(
     @Req() req: Request,
     @Query() q: Record<string, string>,
@@ -557,40 +649,38 @@ export class AppController {
         where: { organizationId: c.organizationId },
         take: p.take,
         skip: p.skip,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       total: await db.payment.count({
         where: { organizationId: c.organizationId },
       }),
     };
   }
-  @Get("inventory") async inventory(@Req() req: Request) {
-    const c = await context(req);
-    const [balances, products, warehouses] = await Promise.all([
-      db.inventoryBalance.findMany({
-        where: { organizationId: c.organizationId },
-        take: 500,
-      }),
-      db.product.findMany({
-        where: { organizationId: c.organizationId },
-        select: {
-          id: true,
-          sku: true,
-          name: true,
-          reorderPoint: true,
-          unit: true,
-        },
-      }),
-      db.warehouse.findMany({ where: { organizationId: c.organizationId } }),
+  @Get("inventory") async inventory(
+    @Req() req: Request,
+    @Query() q: Record<string, string>,
+  ) {
+    const c = await context(req),
+      p = page(q),
+      search = q.search?.slice(0, 200) || "";
+    const filter = Prisma.sql`b."organizationId"=${c.organizationId} AND (p.name ILIKE ${"%" + search + "%"} OR p.sku ILIKE ${"%" + search + "%"} OR w.name ILIKE ${"%" + search + "%"})`;
+    const [items, count] = await Promise.all([
+      db.$queryRaw<any[]>(
+        Prisma.sql`SELECT b.id,b."productId",b."warehouseId",b."onHand"::text,b.reserved::text,(b."onHand"-b.reserved)::text AS available,jsonb_build_object('id',p.id,'name',p.name,'sku',p.sku,'unit',p.unit,'reorderPoint',p."reorderPoint"::text) AS product,jsonb_build_object('id',w.id,'name',w.name) AS warehouse FROM "InventoryBalance" b JOIN "Product" p ON p.id=b."productId" AND p."organizationId"=b."organizationId" JOIN "Warehouse" w ON w.id=b."warehouseId" AND w."organizationId"=b."organizationId" WHERE ${filter} ORDER BY p.sku,b.id LIMIT ${p.take} OFFSET ${p.skip}`,
+      ),
+      db.$queryRaw<{ total: number }[]>(
+        Prisma.sql`SELECT count(*)::int AS total FROM "InventoryBalance" b JOIN "Product" p ON p.id=b."productId" AND p."organizationId"=b."organizationId" JOIN "Warehouse" w ON w.id=b."warehouseId" AND w."organizationId"=b."organizationId" WHERE ${filter}`,
+      ),
     ]);
     return {
-      items: balances.map((b) => ({
-        ...b,
-        available: b.onHand.minus(b.reserved).toString(),
-        product: products.find((p) => p.id === b.productId),
-        warehouse: warehouses.find((w) => w.id === b.warehouseId),
+      items: items.map((row) => ({
+        ...row,
+        onHand: new Decimal(row.onHand).toString(),
+        reserved: new Decimal(row.reserved).toString(),
+        available: new Decimal(row.available).toString(),
       })),
-      total: balances.length,
+      total: count[0].total,
+      page: p.page,
     };
   }
   @Post("inventory/adjust") async adjust(
@@ -607,9 +697,27 @@ export class AppController {
             .regex(/^-?\d{1,12}(\.\d{1,4})?$/)
             .refine((v) => !new Decimal(v).isZero()),
           reason: z.string().min(5).max(300),
+          idempotencyKey: z.string().uuid().optional(),
         })
         .parse(raw);
     return serial(async (tx) => {
+      const hash = createHash("sha256").update(JSON.stringify(x)).digest("hex");
+      if (x.idempotencyKey) {
+        const previous = await tx.operationRequest.findUnique({
+          where: {
+            organizationId_key: {
+              organizationId: c.organizationId,
+              key: x.idempotencyKey,
+            },
+          },
+        });
+        if (previous) {
+          if (previous.requestHash !== hash)
+            throw new ConflictException("Idempotency key conflict");
+          return previous.result;
+        }
+      }
+
       await owned(tx, "product", c, x.productId);
       await owned(tx, "warehouse", c, x.warehouseId);
       const key = {
@@ -634,7 +742,7 @@ export class AppController {
         reason: x.reason,
         quantity: x.quantity,
       });
-      return tx.inventoryMovement.create({
+      const result = await tx.inventoryMovement.create({
         data: {
           ...key,
           quantity: x.quantity,
@@ -643,6 +751,16 @@ export class AppController {
           createdBy: c.userId,
         },
       });
+      if (x.idempotencyKey)
+        await tx.operationRequest.create({
+          data: {
+            organizationId: c.organizationId,
+            key: x.idempotencyKey,
+            requestHash: hash,
+            result: json(result),
+          },
+        });
+      return result;
     });
   }
   @Post("inventory/transfer") async stockTransfer(
@@ -662,7 +780,7 @@ export class AppController {
         where: { organizationId: c.organizationId },
         skip: p.skip,
         take: p.take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       total: await db.inventoryMovement.count({
         where: { organizationId: c.organizationId },
@@ -691,182 +809,17 @@ export class AppController {
       to = q.to ? new Date(q.to) : new Date();
     if (!Number.isFinite(+from) || !Number.isFinite(+to) || from > to)
       throw new BadRequestException("Invalid dates");
-    const scope = { organizationId: c.organizationId };
-    const [docs, projects, inquiries, balances, activity] = await Promise.all([
-      db.document.findMany({ where: scope }),
-      db.project.count({ where: { ...scope, status: "ACTIVE" } }),
-      db.inquiry.count({
-        where: { ...scope, status: { in: ["NEW", "REVIEWING"] } },
-      }),
-      db.inventoryBalance.findMany({ where: scope }),
-      db.auditLog.findMany({
-        where: scope,
-        take: 8,
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
-    const invoices = docs.filter(
-      (d) =>
-        d.kind === "INVOICE" &&
-        ["ISSUED", "PARTIALLY_PAID", "PAID"].includes(d.status),
-    );
-    const current = invoices.filter(
-      (d) => d.createdAt >= from && d.createdAt <= to,
-    );
-    const revenue = current.reduce(
-      (s, d) => s.plus(d.subtotal.minus(d.discount)),
-      new Decimal(0),
-    );
-    const outstanding = invoices.reduce(
-      (s, d) => s.plus(d.total.minus(d.paid)),
-      new Decimal(0),
-    );
-    const quotes = docs.filter(
-      (d) => d.kind === "QUOTATION" && d.createdAt >= from && d.createdAt <= to,
-    );
-    const trend: Record<string, Decimal> = {};
-    for (const d of current) {
-      const k = d.createdAt.toISOString().slice(0, 10);
-      trend[k] = (trend[k] || new Decimal(0)).plus(
-        d.subtotal.minus(d.discount),
-      );
-    }
-    const finance = can(c.role, "finance:read");
-    const products = await db.product.findMany({ where: scope });
-    const lowStock = products.filter((p) =>
-      balances
-        .filter((b) => b.productId === p.id)
-        .reduce((s, b) => s.plus(b.onHand.minus(b.reserved)), new Decimal(0))
-        .lt(p.reorderPoint.toString()),
-    );
-    const costs = finance
-      ? await db.commercialCost.findMany({
-          where: { ...scope, documentId: { in: current.map((d) => d.id) } },
-        })
-      : [];
-    const costComplete = current.every((d) =>
-      costs.some((c) => c.documentId === d.id && c.complete),
-    );
-    const grossProfit = costComplete
-      ? revenue
-          .minus(
-            costs.reduce(
-              (s, c) => s.plus(c.totalCost.toString()),
-              new Decimal(0),
-            ),
-          )
-          .toFixed(2)
-      : null;
-    const inventoryValuation = balances.reduce(
-      (s, b) =>
-        s.plus(
-          new Decimal(b.onHand.toString()).mul(
-            products.find((p) => p.id === b.productId)?.cost.toString() || 0,
-          ),
-        ),
-      new Decimal(0),
-    );
-    const byCustomer: Record<string, Decimal> = {};
-    const byProduct: Record<string, Decimal> = {};
-    for (const d of current) {
-      if (d.customerId)
-        byCustomer[d.customerId] = (
-          byCustomer[d.customerId] || new Decimal(0)
-        ).plus(d.subtotal.minus(d.discount));
-      for (const l of d.lines as Line[]) {
-        const key = l.productId || l.description;
-        byProduct[key] = (byProduct[key] || new Decimal(0)).plus(
-          new Decimal(l.quantity).mul(l.unitPrice),
-        );
-      }
-    }
-    const customers = await db.customer.findMany({
-      where: scope,
-      select: { id: true, name: true },
-    });
-    const allProjects = finance
-      ? await db.project.findMany({ where: scope })
-      : [];
-    const projectExpenses = finance
-      ? await db.expense.findMany({ where: scope })
-      : [];
-
-    return {
-      lowStock: lowStock.map((p) => ({
-        id: p.id,
-        sku: p.sku,
-        name: p.name,
-        reorderPoint: p.reorderPoint,
-      })),
-      openQuotations: docs.filter(
-        (d) =>
-          d.kind === "QUOTATION" &&
-          !["REJECTED", "CONVERTED", "EXPIRED"].includes(d.status),
-      ).length,
-      pendingOrders: docs.filter(
-        (d) =>
-          d.kind === "ORDER" && !["FULFILLED", "CANCELLED"].includes(d.status),
-      ).length,
-      activeProjects: projects,
-      newInquiries: inquiries,
-      stockLines: balances.length,
-      conversionRate: quotes.length
-        ? (quotes.filter((d) => d.status === "CONVERTED").length /
-            quotes.length) *
-          100
-        : 0,
-      ...(finance
-        ? {
-            grossProfit,
-            costComplete,
-            inventoryValuation: inventoryValuation.toFixed(2),
-            salesByCustomer: Object.entries(byCustomer).map(([id, value]) => ({
-              id,
-              name: customers.find((c) => c.id === id)?.name || id,
-              revenue: value.toFixed(2),
-            })),
-            salesByProduct: Object.entries(byProduct).map(([id, value]) => ({
-              id,
-              name: products.find((p) => p.id === id)?.name || id,
-              revenue: value.toFixed(2),
-            })),
-            projectBudgets: allProjects.map((p) => ({
-              id: p.id,
-              name: p.name,
-              budget: p.budget.toString(),
-              expenses: projectExpenses
-                .filter((e) => e.projectId === p.id)
-                .reduce((s, e) => s.plus(e.amount.toString()), new Decimal(0))
-                .toFixed(2),
-            })),
-            revenue: revenue.toFixed(2),
-            receivables: outstanding.toFixed(2),
-            trend: Object.entries(trend)
-              .sort()
-              .map(([date, value]) => ({ date, revenue: value.toNumber() })),
-            aging: [0, 30, 60, 90].map((min, i) => ({
-              label: ["Current / 0–30", "31–60", "61–90", "90+"][i],
-              amount: invoices
-                .filter((d) => {
-                  const days = d.dueDate
-                    ? Math.max(0, (Date.now() - d.dueDate.getTime()) / 86400000)
-                    : 0;
-                  return days >= min && (i === 3 || days < (i + 1) * 30);
-                })
-                .reduce((s, d) => s.plus(d.total.minus(d.paid)), new Decimal(0))
-                .toFixed(2),
-            })),
-          }
-        : {}),
-      activity,
-    };
+    if (to.getTime() - from.getTime() > 366 * 86400000)
+      throw new BadRequestException("Date range must not exceed 366 days");
+    return analyticsReport(c, from, to);
   }
+
   @Get("activity") async activity(@Req() req: Request) {
     const c = await context(req);
     return db.auditLog.findMany({
       where: { organizationId: c.organizationId },
       take: 20,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: { id: true, action: true, createdAt: true, entityId: true },
     });
   }
@@ -881,7 +834,7 @@ export class AppController {
         where: { organizationId: c.organizationId },
         skip: p.skip,
         take: p.take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       total: await db.auditLog.count({
         where: { organizationId: c.organizationId },
@@ -931,6 +884,73 @@ export class AppController {
       },
     });
   }
+  @Get("files") async files(
+    @Req() req: Request,
+    @Query() q: Record<string, string>,
+  ) {
+    const c = await context(req, "projects:write"),
+      p = page(q);
+    const where = { organizationId: c.organizationId };
+    const [items, total] = await Promise.all([
+      db.fileAsset.findMany({
+        where,
+        take: p.take,
+        skip: p.skip,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          name: true,
+          mime: true,
+          size: true,
+          createdAt: true,
+        },
+      }),
+      db.fileAsset.count({ where }),
+    ]);
+    return { items, total, page: p.page };
+  }
+  @Delete("files/:id") async deleteFile(
+    @Req() req: Request,
+    @Param("id") id: string,
+  ) {
+    const c = await context(req, "projects:write");
+    const asset = await serial(async (tx) => {
+      const file = await tx.fileAsset.findFirst({
+        where: { id, organizationId: c.organizationId },
+      });
+      if (!file) throw new NotFoundException();
+      const [takeoffs, jobs] = await Promise.all([
+        tx.takeoff.count({
+          where: { organizationId: c.organizationId, fileId: id },
+        }),
+        tx.aIJob.count({
+          where: {
+            organizationId: c.organizationId,
+            OR: [
+              { input: { path: ["fileId"], equals: id } },
+              { result: { path: ["fileId"], equals: id } },
+            ],
+          },
+        }),
+      ]);
+      if (takeoffs || jobs)
+        throw new ConflictException(
+          "File is linked to a saved takeoff or AI job",
+        );
+      await tx.fileAsset.delete({ where: { id } });
+      await audit(tx, c, "file.delete", id);
+      return file;
+    });
+    await unlink(
+      path.join(
+        process.env.STORAGE_ROOT || "/tmp/metalflow-storage",
+        asset.path,
+      ),
+    ).catch((error) => {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    });
+    return { deleted: true };
+  }
   @Get("files/:id") async download(
     @Req() req: Request,
     @Param("id") id: string,
@@ -959,7 +979,7 @@ export class AppController {
       items: await db.aIJob.findMany({
         where: { organizationId: c.organizationId, createdBy: c.userId },
         take: 30,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     };
   }
@@ -985,22 +1005,25 @@ export class AppController {
     const model = selected.model;
     if (x.fileId) await owned(db, "fileAsset", c, x.fileId);
     if (x.inquiryId) await owned(db, "inquiry", c, x.inquiryId);
-    const count = await db.aIJob.count({
-      where: {
-        organizationId: c.organizationId,
-        createdAt: { gte: new Date(Date.now() - 86400000) },
-      },
-    });
-    if (count >= Number(process.env.AI_DAILY_JOB_LIMIT || 30))
-      throw new ConflictException("Daily AI job limit reached");
-    const j = await db.aIJob.create({
-      data: {
-        organizationId: c.organizationId,
-        kind: x.kind,
-        input: json({ ...x, providerId: selected.providerId }),
-        model,
-        createdBy: c.userId,
-      },
+    const j = await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${c.organizationId}),hashtext('ai-job-quota'))`;
+      const count = await tx.aIJob.count({
+        where: {
+          organizationId: c.organizationId,
+          createdAt: { gte: new Date(Date.now() - 86400000) },
+        },
+      });
+      if (count >= Number(process.env.AI_DAILY_JOB_LIMIT || 30))
+        throw new ConflictException("Daily AI job limit reached");
+      return tx.aIJob.create({
+        data: {
+          organizationId: c.organizationId,
+          kind: x.kind,
+          input: json({ ...x, providerId: selected.providerId }),
+          model,
+          createdBy: c.userId,
+        },
+      });
     });
     try {
       await queue.add(
@@ -1061,6 +1084,56 @@ export class AppController {
       });
     });
   }
+  @Post("fabrication") async fabrication(
+    @Req() req: Request,
+    @Body() raw: unknown,
+  ) {
+    const c = await context(req, "fabrication:write");
+    const x = schemas.fabrication
+      .extend({ idempotencyKey: z.string().uuid().optional() })
+      .parse(raw);
+    const { idempotencyKey, ...data } = x;
+    return serial(async (tx) => {
+      const hash = createHash("sha256")
+        .update(JSON.stringify(data))
+        .digest("hex");
+      if (idempotencyKey) {
+        const prior = await tx.operationRequest.findUnique({
+          where: {
+            organizationId_key: {
+              organizationId: c.organizationId,
+              key: idempotencyKey,
+            },
+          },
+        });
+        if (prior) {
+          if (prior.requestHash !== hash)
+            throw new ConflictException("Idempotency key conflict");
+          return prior.result;
+        }
+      }
+      if (data.orderId) await owned(tx, "document", c, data.orderId);
+      const result = await tx.fabricationJob.create({
+        data: {
+          ...data,
+          cutPlan: data.cutPlan ? json(data.cutPlan) : undefined,
+          organizationId: c.organizationId,
+          createdBy: c.userId,
+        },
+      });
+      if (idempotencyKey)
+        await tx.operationRequest.create({
+          data: {
+            organizationId: c.organizationId,
+            key: idempotencyKey,
+            requestHash: hash,
+            result: json(result),
+          },
+        });
+      await audit(tx, c, "fabrication.create", result.id);
+      return result;
+    });
+  }
   @Get(":resource") async list(
     @Req() req: Request,
     @Param("resource") resource: string,
@@ -1089,7 +1162,7 @@ export class AppController {
         where,
         skip: p.skip,
         take: p.take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       model.count({ where }),
     ]);

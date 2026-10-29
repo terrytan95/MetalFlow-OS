@@ -36,14 +36,26 @@ export async function createDocument(c: Context, raw: unknown) {
       if (inquiry.extraction && !inquiry.reviewed)
         throw new BadRequestException("Review AI extraction first");
     }
+    const products = await tx.product.findMany({
+      where: {
+        organizationId: c.organizationId,
+        id: {
+          in: [
+            ...new Set(
+              x.lines.flatMap((l) => (l.productId ? [l.productId] : [])),
+            ),
+          ],
+        },
+      },
+      select: { id: true, unit: true },
+    });
+    const productsById = new Map(products.map((p) => [p.id, p]));
     for (const line of x.lines)
-      if (line.productId) {
-        const p = await tx.product.findFirst({
-          where: { id: line.productId, organizationId: c.organizationId },
-        });
-        if (!p || p.unit !== line.unit)
-          throw new BadRequestException("Product or unit mismatch");
-      }
+      if (
+        line.productId &&
+        productsById.get(line.productId)?.unit !== line.unit
+      )
+        throw new BadRequestException("Product or unit mismatch");
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: c.organizationId },
     });
@@ -290,7 +302,8 @@ export const fulfillmentSchema = z.object({
           .refine((v) => new Decimal(v).gt(0)),
       }),
     )
-    .min(1),
+    .min(1)
+    .max(100),
   warehouseId: z.string(),
 });
 export async function fulfill(c: Context, id: string, raw: unknown) {
@@ -429,7 +442,7 @@ export async function recordPayment(c: Context, raw: unknown) {
         status: { in: ["ISSUED", "PARTIALLY_PAID"] },
       },
     });
-    if (!d || d.total.minus(d.paid).lt(x.amount))
+    if (!d || d.total.minus(d.paid).minus(d.credited).lt(x.amount))
       throw new ConflictException(
         "Payment exceeds outstanding issued invoice balance",
       );
@@ -439,7 +452,10 @@ export async function recordPayment(c: Context, raw: unknown) {
     const paid = d.paid.plus(x.amount);
     await tx.document.update({
       where: { id: d.id },
-      data: { paid, status: paid.eq(d.total) ? "PAID" : "PARTIALLY_PAID" },
+      data: {
+        paid,
+        status: paid.plus(d.credited).eq(d.total) ? "PAID" : "PARTIALLY_PAID",
+      },
     });
     await audit(tx, c, "payment.record", p.id);
     return p;
@@ -477,8 +493,14 @@ export async function receive(c: Context, id: string, raw: unknown) {
       },
     });
     if (!po) throw new ConflictException("Purchase must be approved");
-    const receipts = await tx.goodsReceipt.findMany({
-      where: { organizationId: c.organizationId, purchaseId: id },
+    const receipts = await tx.inventoryMovement.groupBy({
+      by: ["productId"],
+      where: {
+        organizationId: c.organizationId,
+        kind: "RECEIPT",
+        reference: id,
+      },
+      _sum: { quantity: true },
     });
     const ordered = new Map<string, Decimal>(),
       received = new Map<string, Decimal>();
@@ -491,14 +513,10 @@ export async function receive(c: Context, id: string, raw: unknown) {
       );
     }
     for (const receipt of receipts)
-      for (const l of receipt.lines as {
-        productId: string;
-        quantity: string;
-      }[])
-        received.set(
-          l.productId,
-          (received.get(l.productId) || new Decimal(0)).plus(l.quantity),
-        );
+      received.set(
+        receipt.productId,
+        new Decimal(receipt._sum.quantity?.toString() || "0"),
+      );
     for (const l of x.lines) {
       const total = (received.get(l.productId) || new Decimal(0)).plus(
         l.quantity,
@@ -646,5 +664,91 @@ export async function transferStock(c: Context, raw: unknown) {
       });
     await audit(tx, c, "inventory.transfer", out.id);
     return out;
+  });
+}
+
+export async function shortagePurchase(
+  c: Context,
+  orderId: string,
+  supplierId: string,
+  warehouseId: string,
+) {
+  return serial(async (tx) => {
+    await owned(tx, "supplier", c, supplierId);
+    await owned(tx, "warehouse", c, warehouseId);
+    const order = await tx.document.findFirst({
+      where: {
+        id: orderId,
+        organizationId: c.organizationId,
+        kind: "ORDER",
+        status: { in: ["DRAFT", "CONFIRMED"] },
+      },
+    });
+    if (!order) throw new ConflictException("Choose an unreserved sales order");
+    const prior = await tx.document.findFirst({
+      where: {
+        organizationId: c.organizationId,
+        kind: "PURCHASE",
+        sourceId: orderId,
+      },
+    });
+    if (prior) return prior;
+    const required = new Map<string, Decimal>();
+    for (const line of order.lines as Line[])
+      if (line.productId)
+        required.set(
+          line.productId,
+          (required.get(line.productId) || new Decimal(0)).plus(line.quantity),
+        );
+    const [products, balances] = await Promise.all([
+      tx.product.findMany({
+        where: {
+          organizationId: c.organizationId,
+          id: { in: [...required.keys()] },
+        },
+      }),
+      tx.inventoryBalance.findMany({
+        where: {
+          organizationId: c.organizationId,
+          warehouseId,
+          productId: { in: [...required.keys()] },
+        },
+      }),
+    ]);
+    const byId = new Map(products.map((p) => [p.id, p])),
+      stock = new Map(
+        balances.map((b) => [b.productId, b.onHand.minus(b.reserved)]),
+      );
+    const lines: Line[] = [];
+    for (const [id, quantity] of required) {
+      const product = byId.get(id);
+      if (!product) throw new BadRequestException("Product not found");
+      const shortage = quantity.minus(stock.get(id)?.toString() || "0");
+      if (shortage.gt(0))
+        lines.push({
+          productId: id,
+          description: product.name,
+          quantity: shortage.toString(),
+          unit: product.unit as Line["unit"],
+          unitPrice: product.cost.toString(),
+        });
+    }
+    if (!lines.length) throw new ConflictException("No stock shortage");
+    const doc = await tx.document.create({
+      data: {
+        organizationId: c.organizationId,
+        kind: "PURCHASE",
+        number: `PO-${randomUUID().slice(0, 8).toUpperCase()}`,
+        supplierId,
+        sourceId: orderId,
+        currency: order.currency,
+        lines: json(lines),
+        ...totals(lines),
+        createdBy: c.userId,
+        notes: `Stock shortage for ${order.number}`,
+      },
+    });
+    await audit(tx, c, "purchase.shortage", doc.id, { orderId, warehouseId });
+    return doc;
   });
 }

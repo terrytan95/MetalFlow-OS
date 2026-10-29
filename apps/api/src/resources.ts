@@ -7,6 +7,11 @@ import {
 const name = z.string().min(1).max(200),
   optional = z.string().max(2000).optional();
 export const schemas = {
+  "tax-rates": z.object({
+    name,
+    rate: amount.refine((v) => Number(v) <= 100),
+    active: z.boolean().default(true),
+  }),
   "change-orders": z.object({
     name,
     projectId: z.string(),
@@ -143,6 +148,11 @@ export const resources: Record<
   string,
   { model: string; permission: string; search: string[] }
 > = {
+  "tax-rates": {
+    model: "taxRate",
+    permission: "finance:write",
+    search: ["name"],
+  },
   "change-orders": {
     model: "projectChangeOrder",
     permission: "projects:write",

@@ -53,3 +53,13 @@ Continue remaining master-spec features from IMPLEMENTATION_ROADMAP.md. Configur
 - Dedicated mock-provider queue integration passed: 429/401/quota failover, usage caps, sixth-key fallback, no 5xx replay, malformed-output usage, interrupted jobs, concurrent lease, tenant isolation and no-secret readback.
 - All 4 browser E2E scenarios passed in 27.5 seconds, including AI settings and existing business/theme workflows. Queue integration rerun passed. PR #1 merged (e221cad); production migration and rollout verified.
 - No real provider credential or paid API call used. Production master encryption key generated privately on VPS; no provider keys seeded in production.
+
+## Bilingual / performance / completion update (2026-10-29)
+- Unified English/Chinese interface, login/onboarding language persistence, forms/status/errors/AI settings and localization coverage check.
+- SQL analytics and real inventory pagination; bulk imports/validation, receipt aggregation, lookup maps, bounded stable caches, debounced search and lazy charts.
+- FHR-inspired immediate page update + 220ms 4px transition; dialog transitions and reduced-motion support.
+- Profile editing, tax settings, credit notes for unpaid balances, task calendar/timeline, customer tags/credit limit, shortage purchase drafts, verified BOM-to-quote, unused-file removal.
+- Replay-safe stock adjustments/fabrication, atomic AI quota, organization/signout cache cleanup, preview cleanup and mobile focus fixes.
+- Migrations 202610290007_finance_indexes and 202610290008_operations verified on isolated test database.
+- Baseline large analytics exhausted test API memory; new fixture median 184.3ms, no unsupported speedup claim. Cutting 5k fixture measured ~8.17x locally; see docs/performance.
+- All six browser E2E scenarios passed (57.4s); extended finance/stock/files/quota and AI pool integration passed. Static translation coverage has no missing literal UI keys. 24 unit tests, strict typecheck, lint, dependency audit and production build passed. PDF label localization verified. Deployment pending. Remaining scope is explicit in PERFORMANCE_AUDIT.md and IMPLEMENTATION_ROADMAP.md.

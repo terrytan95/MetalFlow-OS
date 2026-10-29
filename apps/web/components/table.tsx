@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "../lib/i18n";
 import { useMemo } from "react";
 import {
   useReactTable,
@@ -18,27 +19,46 @@ export function RecordsTable({
   onSelect?: (record: RecordData) => void;
   lookups: Record<string, RecordData[]>;
 }) {
+  const { t, locale } = useI18n();
+  const lookupById = useMemo(
+    () =>
+      new Map(
+        Object.values(lookups)
+          .flat()
+          .map((row) => [row.id, row.name || row.subject]),
+      ),
+    [lookups],
+  );
+
   const defs = useMemo(
     () =>
       columns.map((key) => ({
         accessorKey: key,
-        header: titleCase(key).replace("Id", ""),
+        header: t(key) === key ? titleCase(key).replace("Id", "") : t(key),
         cell: ({ getValue }: any) => {
           const v = getValue();
           if (v == null) return <span className="muted">—</span>;
           if (key === "status") return <Badge value={String(v)} />;
-          if (/At$|Date$/.test(key)) return new Date(v).toLocaleDateString();
+          if (/At$|Date$/.test(key))
+            return new Date(v).toLocaleDateString(locale);
           if (key.endsWith("Id"))
-            return (
-              Object.values(lookups)
-                .flat()
-                .find((x) => x.id === v)?.name || String(v).slice(0, 8)
-            );
+            return lookupById.get(v) || String(v).slice(0, 8);
           if (typeof v === "object") return v.name || JSON.stringify(v);
-          return String(v);
+          return [
+            "type",
+            "unit",
+            "profile",
+            "source",
+            "method",
+            "kind",
+            "category",
+            "role",
+          ].includes(key)
+            ? t(String(v))
+            : String(v);
         },
       })),
-    [columns, lookups],
+    [columns, lookupById, t, locale],
   );
   const table = useReactTable({
     data: items,
@@ -59,7 +79,7 @@ export function RecordsTable({
               ))}
               {onSelect && (
                 <th>
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("Actions")}</span>
                 </th>
               )}
             </tr>
@@ -79,7 +99,8 @@ export function RecordsTable({
                     className="table-action"
                     onClick={() => onSelect(r.original)}
                   >
-                    Open →
+                    {" "}
+                    {t("Open →")}{" "}
                   </Button>
                 </td>
               )}

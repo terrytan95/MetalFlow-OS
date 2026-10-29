@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "../lib/i18n";
 import { useState } from "react";
 import {
   Layers3,
@@ -10,6 +11,8 @@ import {
 import { Button } from "./ui";
 import type { API } from "./forms";
 export function AuthScreen({ api, done }: { api: API; done: () => void }) {
+  const { t, locale, setLocale } = useI18n();
+
   const [mode, setMode] = useState("signin"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -19,51 +22,61 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
         <div className="brand">
           <Layers3 />
           <span>
-            MetalFlow <b>OS</b>
+            {" "}
+            {t("MetalFlow")} <b>{t("OS")}</b>
           </span>
         </div>
         <div>
-          <span className="eyebrow">BUILT FOR THE WORK BEHIND THE WORK</span>
+          <span className="eyebrow">
+            {t("BUILT FOR THE WORK BEHIND THE WORK")}
+          </span>
           <h1>
-            From first inquiry.
-            <br />
-            To final delivery.
+            {" "}
+            {t("From first inquiry.")} <br /> {t("To final delivery.")}{" "}
           </h1>
           <p>
-            One connected workspace for metal supply, fabrication and interior
-            projects.
+            {" "}
+            {t(
+              "One connected workspace for metal supply, fabrication and interior projects.",
+            )}{" "}
           </p>
           <div className="auth-features">
             <span>
-              <FileCheck2 />
-              Clear quotations
+              <FileCheck2 /> {t("Clear quotations")}{" "}
             </span>
             <span>
-              <Package />
-              Confident inventory
+              <Package /> {t("Confident inventory")}{" "}
             </span>
             <span>
-              <ShieldCheck />
-              Your company. Your data.
+              <ShieldCheck /> {t("Your company. Your data.")}{" "}
             </span>
           </div>
         </div>
-        <small>The intelligent operating system for your business.</small>
+        <small>
+          {t("The intelligent operating system for your business.")}
+        </small>
       </section>
       <section className="auth-form">
+        <button
+          className="auth-language btn"
+          onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+          aria-label={t("Change language")}
+        >
+          {locale === "en" ? "简体中文" : "English"}
+        </button>
         <div className="auth-inner">
-          <span className="eyebrow">YOUR WORKSPACE STARTS HERE</span>
+          <span className="eyebrow">{t("YOUR WORKSPACE STARTS HERE")}</span>
           <h2>
             {mode === "signup"
-              ? "Create your account"
+              ? t("Create your account")
               : mode === "reset"
-                ? "Reset your password"
-                : "Welcome back"}
+                ? t("Reset your password")
+                : t("Welcome back")}
           </h2>
           <p className="muted">
             {mode === "signup"
-              ? "Set up your organization in a few simple steps."
-              : "Sign in to keep your operations moving."}
+              ? t("Set up your organization in a few simple steps.")
+              : t("Sign in to keep your operations moving.")}
           </p>
           <form
             onSubmit={async (e) => {
@@ -101,23 +114,26 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
           >
             {mode === "signup" && (
               <label>
-                Full name
+                {" "}
+                {t("Full name")}{" "}
                 <input name="name" required autoComplete="name" />
               </label>
             )}
             <label>
-              Email address
+              {" "}
+              {t("Email address")}{" "}
               <input
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="you@company.com"
+                placeholder={t("you@company.com")}
               />
             </label>
             {mode !== "reset" && (
               <label>
-                Password
+                {" "}
+                {t("Password")}{" "}
                 <input
                   name="password"
                   type="password"
@@ -126,64 +142,70 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
                   autoComplete={
                     mode === "signup" ? "new-password" : "current-password"
                   }
-                  placeholder="At least 12 characters"
+                  placeholder={t("At least 12 characters")}
                 />
               </label>
             )}
             {error && (
               <p className="error" role="alert">
-                {error}
+                {t(error)}
               </p>
             )}
             <Button className="primary full mt" disabled={busy}>
               {busy
-                ? "Please wait…"
+                ? t("Please wait…")
                 : mode === "signup"
-                  ? "Create account"
+                  ? t("Create account")
                   : mode === "reset"
-                    ? "Send reset link"
-                    : "Sign in"}
+                    ? t("Send reset link")
+                    : t("Sign in")}
               <ArrowRight size={16} />
             </Button>
           </form>
           <p className="auth-switch">
             {mode === "signup"
-              ? "Already have an account?"
-              : "New to MetalFlow?"}{" "}
+              ? t("Already have an account?")
+              : t("New to MetalFlow?")}{" "}
             <button
               onClick={() => {
                 setMode(mode === "signup" ? "signin" : "signup");
                 setError("");
               }}
             >
-              {mode === "signup" ? "Sign in" : "Create an account"}
+              {mode === "signup" ? t("Sign in") : t("Create an account")}
             </button>
           </p>
           {mode === "signin" && (
             <button className="text-button" onClick={() => setMode("reset")}>
-              Forgot password?
+              {" "}
+              {t("Forgot password?")}{" "}
             </button>
           )}
         </div>
         <small className="auth-footer">
-          MetalFlow OS · Secure company workspaces
+          {" "}
+          {t("MetalFlow OS · Secure company workspaces")}{" "}
         </small>
       </section>
     </div>
   );
 }
 export function Onboarding({ api, done }: { api: API; done: () => void }) {
+  const { t, locale, setLocale } = useI18n();
+
   const [error, setError] = useState("");
   return (
     <div className="onboarding">
       <div className="panel">
         <div className="brand">
-          <Layers3 />
-          MetalFlow OS
+          <Layers3 /> {t("MetalFlow OS")}{" "}
         </div>
-        <h1>Make it your workspace.</h1>
+        <h1>{t("Make it your workspace.")}</h1>
         <p className="muted">
-          Your company data stays separate from every other organization.
+          {" "}
+          {t(
+            "Your company data stays separate from every other organization.",
+          )}{" "}
         </p>
         <form
           onSubmit={async (e) => {
@@ -196,6 +218,7 @@ export function Onboarding({ api, done }: { api: API; done: () => void }) {
                 Object.fromEntries(f),
               );
               localStorage.setItem("metalflow.org", org.id);
+              setLocale(org.locale === "zh" ? "zh" : "en");
               done();
             } catch (e) {
               setError((e as Error).message);
@@ -203,23 +226,26 @@ export function Onboarding({ api, done }: { api: API; done: () => void }) {
           }}
         >
           <label>
-            Company name
-            <input name="name" required minLength={2} />
+            {" "}
+            {t("Company name")} <input name="name" required minLength={2} />
           </label>
           <label>
-            Business type
+            {" "}
+            {t("Business type")}{" "}
             <select name="businessType">
               <option value="DISTRIBUTOR">
-                Metal wholesaler / distributor
+                {" "}
+                {t("Metal wholesaler / distributor")}{" "}
               </option>
-              <option value="FABRICATOR">Fabrication workshop</option>
-              <option value="CONTRACTOR">Renovation contractor</option>
-              <option value="MIXED">Multiple business lines</option>
+              <option value="FABRICATOR">{t("Fabrication workshop")}</option>
+              <option value="CONTRACTOR">{t("Renovation contractor")}</option>
+              <option value="MIXED">{t("Multiple business lines")}</option>
             </select>
           </label>
           <div className="form-grid">
             <label>
-              Currency
+              {" "}
+              {t("Currency")}{" "}
               <select name="currency">
                 {[
                   "USD",
@@ -237,7 +263,8 @@ export function Onboarding({ api, done }: { api: API; done: () => void }) {
               </select>
             </label>
             <label>
-              Country / region code
+              {" "}
+              {t("Country / region code")}{" "}
               <input
                 name="country"
                 minLength={2}
@@ -247,17 +274,18 @@ export function Onboarding({ api, done }: { api: API; done: () => void }) {
               />
             </label>
             <label>
-              Language
-              <select name="locale">
-                <option value="en">English</option>
+              {" "}
+              {t("Language")}{" "}
+              <select name="locale" defaultValue={locale}>
+                <option value="en">{t("English")}</option>
                 <option value="zh">简体中文</option>
               </select>
             </label>
           </div>
-          {error && <p className="error">{error}</p>}
+          {error && <p className="error">{t(error)}</p>}
           <Button className="primary full mt">
-            Create workspace
-            <ArrowRight size={16} />
+            {" "}
+            {t("Create workspace")} <ArrowRight size={16} />
           </Button>
         </form>
       </div>
@@ -274,14 +302,19 @@ export function InvitationScreen({
   token: string;
   done: () => void;
 }) {
+  const { t } = useI18n();
+
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
     <div className="onboarding">
       <section className="panel">
-        <h1>Join your team.</h1>
+        <h1>{t("Join your team.")}</h1>
         <p className="muted mt">
-          Accept this invitation with the email address it was sent to.
+          {" "}
+          {t(
+            "Accept this invitation with the email address it was sent to.",
+          )}{" "}
         </p>
         <Button
           className="primary mt"
@@ -300,9 +333,10 @@ export function InvitationScreen({
             }
           }}
         >
-          Accept invitation
+          {" "}
+          {t("Accept invitation")}{" "}
         </Button>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error">{t(error)}</p>}
       </section>
     </div>
   );
@@ -316,11 +350,13 @@ export function ResetPasswordScreen({
   token: string;
   done: () => void;
 }) {
+  const { t } = useI18n();
+
   const [error, setError] = useState("");
   return (
     <div className="onboarding">
       <section className="panel">
-        <h1>Choose a new password.</h1>
+        <h1>{t("Choose a new password.")}</h1>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -338,7 +374,8 @@ export function ResetPasswordScreen({
           }}
         >
           <label>
-            New password
+            {" "}
+            {t("New password")}{" "}
             <input
               type="password"
               name="password"
@@ -347,8 +384,8 @@ export function ResetPasswordScreen({
               autoComplete="new-password"
             />
           </label>
-          <Button className="primary mt">Reset password</Button>
-          {error && <p className="error">{error}</p>}
+          <Button className="primary mt">{t("Reset password")}</Button>
+          {error && <p className="error">{t(error)}</p>}
         </form>
       </section>
     </div>

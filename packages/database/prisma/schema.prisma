@@ -166,6 +166,7 @@ model Document {
   tax Decimal @default(0) @db.Decimal(18,2)
   total Decimal @db.Decimal(18,2)
   paid Decimal @default(0) @db.Decimal(18,2)
+  credited Decimal @default(0) @db.Decimal(18,2)
   lines Json
   createdBy String
   createdAt DateTime @default(now())
@@ -502,4 +503,38 @@ model AIKeyAttempt {
  completedAt DateTime?
  @@index([organizationId,createdAt])
  @@index([organizationId,jobId])
+}
+
+model CreditNote {
+ id String @id @default(uuid())
+ organizationId String
+ invoiceId String
+ amount Decimal @db.Decimal(18,2)
+ reason String
+ idempotencyKey String
+ createdBy String
+ createdAt DateTime @default(now())
+ @@unique([organizationId,idempotencyKey])
+ @@index([organizationId,invoiceId])
+}
+model TaxRate {
+ id String @id @default(uuid())
+ organizationId String
+ name String
+ rate Decimal @db.Decimal(8,4)
+ active Boolean @default(true)
+ createdBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([organizationId,active])
+}
+
+model OperationRequest {
+ id String @id @default(uuid())
+ organizationId String
+ key String
+ requestHash String
+ result Json
+ createdAt DateTime @default(now())
+ @@unique([organizationId,key])
 }

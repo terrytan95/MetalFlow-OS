@@ -1,5 +1,7 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
-import { createHash } from "node:crypto";
+import { Decimal } from "decimal.js";
+import { Prisma } from "@prisma/client";
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { schemas } from "./resources.js";
 import { serial, owned, audit, type Context } from "./context.js";
@@ -39,63 +41,77 @@ export async function importRecords(
       if (!x.warehouseId) throw new BadRequestException("Warehouse required");
       await owned(tx, "warehouse", c, x.warehouseId);
     }
-    for (const rawRow of x.rows) {
-      const data = Object.fromEntries(
-        Object.entries(rawRow).filter(([, v]) => v !== ""),
+    const rows = x.rows.map((row) =>
+      Object.fromEntries(Object.entries(row).filter(([, v]) => v !== "")),
+    );
+    if (resource === "customers") {
+      const parsed = rows.map((row) => schemas.customers.parse(row));
+      const names = parsed.map((r) => r.name.toLowerCase());
+      if (new Set(names).size !== names.length)
+        throw new ConflictException("Duplicate customer names in import");
+      const existing = await tx.$queryRaw<{ name: string }[]>(
+        Prisma.sql`SELECT name FROM "Customer" WHERE "organizationId"=${c.organizationId} AND lower(name) IN (${Prisma.join(names)}) LIMIT 1`,
       );
-      if (resource === "customers") {
-        const v = schemas.customers.parse(data);
-        if (
-          await tx.customer.findFirst({
-            where: {
-              organizationId: c.organizationId,
-              name: { equals: v.name, mode: "insensitive" },
-            },
-          })
-        )
-          throw new ConflictException(
-            `Customer ${v.name} already exists; no records merged`,
-          );
-        await tx.customer.create({
-          data: { ...v, organizationId: c.organizationId, createdBy: c.userId },
-        });
-      } else if (resource === "products") {
-        const v = schemas.products.parse(data);
-        await tx.product.create({
-          data: { ...v, organizationId: c.organizationId, createdBy: c.userId },
-        });
-      } else if (resource === "inventory") {
-        const v = z.object({ sku: z.string(), quantity: positive }).parse(data);
-        const product = await tx.product.findUnique({
-          where: {
-            organizationId_sku: {
-              organizationId: c.organizationId,
-              sku: v.sku,
-            },
-          },
-        });
-        if (!product) throw new BadRequestException(`Unknown SKU: ${v.sku}`);
-        const key = {
+      if (existing.length)
+        throw new ConflictException(
+          `Customer ${existing[0].name} already exists; no records merged`,
+        );
+      await tx.customer.createMany({
+        data: parsed.map((row) => ({
+          ...row,
           organizationId: c.organizationId,
-          productId: product.id,
+          createdBy: c.userId,
+        })),
+      });
+    } else if (resource === "products") {
+      const parsed = rows.map((row) => schemas.products.parse(row));
+      await tx.product.createMany({
+        data: parsed.map((row) => ({
+          ...row,
+          organizationId: c.organizationId,
+          createdBy: c.userId,
+        })),
+      });
+    } else if (resource === "inventory") {
+      const parsed = rows.map((row) =>
+        z.object({ sku: z.string(), quantity: positive }).parse(row),
+      );
+      const products = await tx.product.findMany({
+        where: {
+          organizationId: c.organizationId,
+          sku: { in: parsed.map((r) => r.sku) },
+        },
+        select: { id: true, sku: true },
+      });
+      const bySku = new Map(products.map((p) => [p.sku, p.id]));
+      const quantities = new Map<string, Decimal>();
+      for (const row of parsed) {
+        const id = bySku.get(row.sku);
+        if (!id) throw new BadRequestException(`Unknown SKU: ${row.sku}`);
+        quantities.set(
+          id,
+          (quantities.get(id) || new Decimal(0)).plus(row.quantity),
+        );
+      }
+      const values = [...quantities].map(
+        ([productId, quantity]) =>
+          Prisma.sql`(${randomUUID()},${c.organizationId},${productId},${x.warehouseId},${quantity.toString()}::numeric,0,CURRENT_TIMESTAMP)`,
+      );
+      await tx.$executeRaw(
+        Prisma.sql`INSERT INTO "InventoryBalance"(id,"organizationId","productId","warehouseId","onHand",reserved,"updatedAt") VALUES ${Prisma.join(values)} ON CONFLICT("organizationId","productId","warehouseId") DO UPDATE SET "onHand"="InventoryBalance"."onHand"+EXCLUDED."onHand","updatedAt"=CURRENT_TIMESTAMP`,
+      );
+      await tx.inventoryMovement.createMany({
+        data: [...quantities].map(([productId, quantity]) => ({
+          organizationId: c.organizationId,
+          productId,
           warehouseId: x.warehouseId!,
-        };
-        await tx.inventoryBalance.upsert({
-          where: { organizationId_productId_warehouseId: key },
-          create: { ...key, onHand: v.quantity },
-          update: { onHand: { increment: v.quantity } },
-        });
-        await tx.inventoryMovement.create({
-          data: {
-            ...key,
-            quantity: v.quantity,
-            kind: "IMPORT",
-            reference: x.idempotencyKey,
-            createdBy: c.userId,
-          },
-        });
-      } else throw new BadRequestException("Unsupported import resource");
-    }
+          quantity: quantity.toString(),
+          kind: "IMPORT",
+          reference: x.idempotencyKey,
+          createdBy: c.userId,
+        })),
+      });
+    } else throw new BadRequestException("Unsupported import resource");
     const out = await tx.importBatch.create({
       data: {
         organizationId: c.organizationId,
