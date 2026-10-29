@@ -147,3 +147,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 ## Markdown rendering in AI chat responses (2026-10-29)
 - Integrated GitHub Flavored Markdown (GFM) rendering with sanitization for AI assistant and design conversation messages.
 - Formatted headings, lists, blockquotes, inline/fenced code blocks, tables, and links with theme typography tokens.
+
+## Multi-session AI chats, conversation deletion & history clearing (2026-10-29)
+- Implemented full multi-session chat management in AIWorkspace: added ChatGPT-style left sidebar with "+ New chat" button, session listing, dynamic titles, and timestamps.
+- Supported individual chat deletion with user confirmation via `DELETE /metalflow/api/v1/ai/sessions/:sessionId` (or `DELETE /metalflow/api/v1/ai/jobs/:id`).
+- Added "Clear all AI conversation history" action in Organization Settings via `DELETE /metalflow/api/v1/ai/history` with tenant-isolated database cleanup and user confirmation gate.

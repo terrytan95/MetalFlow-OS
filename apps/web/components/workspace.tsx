@@ -65,6 +65,7 @@ import {
   Building2,
   Wrench,
   CheckSquare,
+  Trash2,
 } from "lucide-react";
 import { config, groups, kinds, can, titleCase, type RecordData } from "./data";
 import { Button, Modal, Badge, Empty, confirmDialogDiscard, cn } from "./ui";
@@ -1493,6 +1494,35 @@ function Application() {
                 organizationId={organization}
                 onChanged={() => refresh()}
               />
+              <div className="settings-section">
+                <h3>{t("AI conversation history")}</h3>
+                <p className="muted">
+                  {t(
+                    "Clear all saved AI conversation and design sessions. This cannot be undone.",
+                  )}
+                </p>
+                <Button
+                  type="button"
+                  className="btn-danger mt"
+                  onClick={async () => {
+                    const confirmMsg =
+                      t("Clear all AI conversation history? This cannot be undone.");
+                    if (!window.confirm(confirmMsg)) return;
+                    try {
+                      await api("ai/history", "DELETE");
+                      refresh();
+                      setMessage(
+                        t("AI conversation history cleared"),
+                      );
+                    } catch (e) {
+                      setFormError((e as Error).message);
+                    }
+                  }}
+                >
+                  <Trash2 size={15} />
+                  <span>{t("Clear all AI history")}</span>
+                </Button>
+              </div>
               <div className="record-row">
                 <span>{t("Email delivery")}</span>
                 <Badge
