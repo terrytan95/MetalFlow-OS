@@ -3136,6 +3136,17 @@ html[lang^="zh"] .page-heading p {
   background: var(--danger);
   color: #fff;
 }
+.modal-confirm-text {
+  font-size: calc(14px * var(--text-scale, 1));
+  line-height: 1.6;
+  color: var(--text);
+  margin: 12px 0 20px;
+}
+.modal-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 @media (max-width: 768px) {
   .chat-layout {
     position: relative;

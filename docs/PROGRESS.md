@@ -152,3 +152,4 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Implemented full multi-session chat management in AIWorkspace: added ChatGPT-style left sidebar with "+ New chat" button, session listing, dynamic titles, and timestamps.
 - Supported individual chat deletion with user confirmation via `DELETE /metalflow/api/v1/ai/sessions/:sessionId` (or `DELETE /metalflow/api/v1/ai/jobs/:id`).
 - Added "Clear all AI conversation history" action in Organization Settings via `DELETE /metalflow/api/v1/ai/history` with tenant-isolated database cleanup and user confirmation gate.
+- Replaced browser-native window.confirm with in-page theme-matched confirmation modals for both single chat deletion and global history clearing.

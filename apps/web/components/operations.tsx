@@ -24,7 +24,7 @@ import {
   MessageSquare,
   Trash2,
 } from "lucide-react";
-import { Button, Badge, Empty } from "./ui";
+import { Button, Badge, Empty, Modal } from "./ui";
 import type { API } from "./forms";
 import type { RecordData } from "./data";
 export function Cutting({ api }: { api: API }) {
@@ -246,6 +246,7 @@ export function AIWorkspace({
   const [error, setError] = useState("");
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [showSessionsMobile, setShowSessionsMobile] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -298,19 +299,9 @@ export function AIWorkspace({
     setShowSessionsMobile(false);
   };
 
-  const handleDeleteSession = async (e: React.MouseEvent, sid: string) => {
+  const handleDeleteSession = (e: React.MouseEvent, sid: string) => {
     e.stopPropagation();
-    if (!window.confirm(t("Delete this conversation? This cannot be undone.")))
-      return;
-    try {
-      await api(`ai/sessions/${encodeURIComponent(sid)}`, "DELETE");
-      if (activeId === sid) {
-        setActiveSessionId("");
-      }
-      refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    setSessionToDelete(sid);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -652,6 +643,47 @@ export function AIWorkspace({
         </p>
       </div>
     </div>
+      <Modal
+        open={!!sessionToDelete}
+        onClose={() => setSessionToDelete(null)}
+        title={t("Delete conversation")}
+      >
+        <p className="modal-confirm-text">
+          {t("Delete this conversation? This cannot be undone.")}
+        </p>
+        <div className="actions modal-confirm-actions">
+          <Button
+            type="button"
+            onClick={() => setSessionToDelete(null)}
+          >
+            {t("Cancel")}
+          </Button>
+          <Button
+            type="button"
+            className="btn-danger"
+            disabled={busy}
+            onClick={async () => {
+              if (!sessionToDelete) return;
+              try {
+                setBusy(true);
+                await api(`ai/sessions/${encodeURIComponent(sessionToDelete)}`, "DELETE");
+                if (activeId === sessionToDelete) {
+                  setActiveSessionId("");
+                }
+                setSessionToDelete(null);
+                refresh();
+              } catch (err) {
+                setError((err as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Trash2 size={14} />
+            <span>{t("Delete")}</span>
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
