@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
+import { AISettingsController } from "./ai-settings.js";
 import { AppController } from "./controller.js";
 import { auth } from "./auth.js";
 @Catch()
@@ -60,7 +61,7 @@ class Errors implements ExceptionFilter {
       .json({ error: { code: status, message, requestId: req.requestId } });
   }
 }
-@Module({ controllers: [AppController] })
+@Module({ controllers: [AISettingsController, AppController] })
 class AppModule {}
 const app = await NestFactory.create(AppModule, { bodyParser: false });
 const server = app.getHttpAdapter().getInstance();

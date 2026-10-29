@@ -436,3 +436,70 @@ model CommercialCost {
  updatedAt DateTime @updatedAt
  @@index([organizationId,documentId])
 }
+
+model AIProvider {
+ id String @id @default(uuid())
+ organizationId String
+ name String
+ type String
+ protocol String @default("RESPONSES")
+ baseUrl String
+ textModel String?
+ imageModel String?
+ enabled Boolean @default(true)
+ priority Int @default(0)
+ createdBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ keys AIProviderKey[]
+ @@unique([organizationId,id])
+ @@index([organizationId,enabled,priority])
+}
+model AIProviderKey {
+ id String @id @default(uuid())
+ organizationId String
+ providerId String
+ provider AIProvider @relation(fields:[organizationId,providerId],references:[organizationId,id])
+ label String
+ encryptedKey String
+ fingerprint String
+ suffix String
+ enabled Boolean @default(true)
+ status String @default("READY")
+ dailyRequestLimit Int?
+ dailyTokenLimit Int?
+ usageDay String
+ dailyRequests Int @default(0)
+ dailyTokens Int @default(0)
+ totalRequests Int @default(0)
+ totalTokens BigInt @default(0)
+ lastUsedAt DateTime?
+ cooldownUntil DateTime?
+ leaseUntil DateTime?
+ leaseId String?
+ lastErrorCode String?
+ lastHttpStatus Int?
+ createdBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([organizationId,providerId,fingerprint])
+ @@index([organizationId,providerId,enabled])
+}
+model AIKeyAttempt {
+ id String @id @default(uuid())
+ organizationId String
+ jobId String
+ providerId String
+ keyId String
+ model String
+ status String @default("RUNNING")
+ httpStatus Int?
+ errorCode String?
+ inputTokens Int @default(0)
+ outputTokens Int @default(0)
+ totalTokens Int @default(0)
+ createdAt DateTime @default(now())
+ completedAt DateTime?
+ @@index([organizationId,createdAt])
+ @@index([organizationId,jobId])
+}

@@ -9,3 +9,5 @@
 - Production secrets are generated on the VPS, mode 0600, ignored by Git. Never publish .env, customer exports or backups.
 
 Not a universal accounting or tax compliance product. Security controls do not replace operational review, offsite recovery, monitoring or independent penetration testing.
+
+Organization-managed AI keys: AES-256-GCM, random IV, tenant/provider AAD, server-only master key. Provider origin/protocol cannot be altered while retaining keys. All configured endpoints require public HTTPS, all DNS answers are checked, socket DNS is checked again and redirects are refused. Production does not load the mock-provider Compose overlay. Error logs store normalized codes rather than raw upstream bodies. Real credentials are neither seeded nor used in automated tests.

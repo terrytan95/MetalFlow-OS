@@ -21,3 +21,13 @@ OpenAPI currently enumerates routes; detailed body contracts are in Zod schemas 
 Additional operations: POST /inventory/transfer (tenant-validated warehouses, available-stock guard, idempotent request); POST /imports/:resource for customers/products/inventory (500-row atomic import); GET/POST/PATCH /change-orders and POST /change-orders/:id/approve (budget adjustment once only).
 
 Analytics definitions: revenue is issued invoice subtotal less document discount, excluding tax, by creation date. Receivables are all issued invoice totals less payments. Quote conversion is converted quotations / created quotations in the selected range. Catalog gross profit subtracts immutable quoted catalog cost snapshots from revenue; unavailable if any invoice lacks complete costs. Inventory valuation is on-hand × current catalog cost, not historical accounting COGS. Product sales are pre-document-discount line extensions. Project budget reports compare budget (including approved changes) with recorded expenses, not recognized project revenue.
+
+### Organization AI configuration
+All configuration routes require organization:manage and verified membership:
+- GET/POST /ai/providers; PATCH /ai/providers/:id (endpoint/protocol immutable).
+- POST /ai/providers/:id/keys (write-only plaintext input, encrypted storage).
+- PATCH /ai/providers/:id/keys/:keyId (label, enable, daily limits, resetHealth).
+- DELETE /ai/providers/:id/keys/:keyId (rejects an active lease).
+- POST /ai/jobs accepts an optional tenant-owned providerId. The selected provider/model is saved with the queued job.
+
+GET returns masked key suffixes, observed usage, status/cooldown and the most recent 30 attempt records; it never returns key plaintext/ciphertext/fingerprints. See AI_PROVIDERS.md for routing/error rules and native protocol limits.

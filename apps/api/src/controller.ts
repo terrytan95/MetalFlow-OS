@@ -1,3 +1,7 @@
+import {
+  capabilities,
+  resolveProvider,
+} from "../../../packages/ai/src/pool.js";
 import { snapshotCost } from "./costs.js";
 import { importRecords } from "./imports.js";
 import {
@@ -97,12 +101,18 @@ export class AppController {
         include: { organization: true },
       }),
       capabilities: {
-        ai: Boolean(
-          process.env.OPENAI_API_KEY && process.env.OPENAI_TEXT_MODEL,
-        ),
-        image: Boolean(
-          process.env.OPENAI_API_KEY && process.env.OPENAI_IMAGE_MODEL,
-        ),
+        ...(await (async () => {
+          const requested = req.header("x-organization-id");
+          const member = await db.membership.findFirst({
+            where: {
+              userId: s.user.id,
+              ...(requested ? { organizationId: requested } : {}),
+            },
+          });
+          return member
+            ? capabilities(member.organizationId)
+            : { ai: false, image: false };
+        })()),
         email: Boolean(process.env.SMTP_URL),
       },
     };
@@ -961,16 +971,18 @@ export class AppController {
         text: z.string().min(1).max(20000),
         fileId: z.string().optional(),
         inquiryId: z.string().optional(),
+        providerId: z.string().uuid().optional(),
       })
       .parse(raw);
-    const model =
-      x.kind === "DESIGN"
-        ? process.env.OPENAI_IMAGE_MODEL
-        : process.env.OPENAI_TEXT_MODEL;
-    if (!process.env.OPENAI_API_KEY || !model)
+    let selected: { providerId: string | null; model: string };
+    try {
+      selected = await resolveProvider(c.organizationId, x.kind, x.providerId);
+    } catch {
       throw new BadRequestException(
-        "AI is not configured. Set a project API key and verified model IDs on the server.",
+        "Configure an enabled AI provider, model and key in Settings.",
       );
+    }
+    const model = selected.model;
     if (x.fileId) await owned(db, "fileAsset", c, x.fileId);
     if (x.inquiryId) await owned(db, "inquiry", c, x.inquiryId);
     const count = await db.aIJob.count({
@@ -985,7 +997,7 @@ export class AppController {
       data: {
         organizationId: c.organizationId,
         kind: x.kind,
-        input: json(x),
+        input: json({ ...x, providerId: selected.providerId }),
         model,
         createdBy: c.userId,
       },

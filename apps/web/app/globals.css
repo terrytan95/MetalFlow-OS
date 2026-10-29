@@ -1753,3 +1753,68 @@ td:first-child {
 .theme-option strong {
   line-height: 1.5;
 }
+.ai-settings {
+  margin-top: 24px;
+}
+.ai-settings .notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ai-settings .notice > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.provider-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  margin: 18px 0;
+}
+.provider-card .panel-title {
+  align-items: flex-start;
+}
+.provider-card .panel-title p {
+  overflow-wrap: anywhere;
+}
+.provider-card .table-scroll {
+  margin-top: 18px;
+}
+.key-suffix {
+  display: block;
+  color: var(--muted);
+  margin-top: 5px;
+  font-size: 10px;
+}
+.provider-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 15px;
+  font-size: 11px;
+}
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checkbox-field input {
+  margin: 0;
+}
+.settings-panel:has(.ai-settings) {
+  max-width: 1200px;
+}
+@media (max-width: 760px) {
+  .provider-card {
+    padding: 12px;
+  }
+  .provider-card .panel-title,
+  .provider-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ai-settings > .panel-title {
+    flex-wrap: wrap;
+  }
+}

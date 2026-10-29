@@ -1,0 +1,18 @@
+services:
+  api:
+    environment:
+      AI_TEST_MODE: 'true'
+      AI_TEST_PROVIDER_ORIGIN: http://ai-mock:8080
+  worker:
+    environment:
+      AI_TEST_MODE: 'true'
+      AI_TEST_PROVIDER_ORIGIN: http://ai-mock:8080
+  ai-mock:
+    image: metalflow-api:latest
+    command: [node, tests/ai-mock.mjs]
+    restart: 'no'
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8080/health]
+      interval: 5s
+      timeout: 2s
+      retries: 10

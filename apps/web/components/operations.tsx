@@ -176,8 +176,9 @@ export function AIWorkspace({
           <div className="notice">
             <strong>Configuration required</strong>
             <p>
-              A project API key and verified model are not configured. AI
-              generation is disabled.
+              Ask an organization administrator to configure an AI provider,
+              model and API key in Settings. AI generation is disabled until
+              configured.
             </p>
           </div>
         )}

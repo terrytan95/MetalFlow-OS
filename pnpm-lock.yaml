@@ -50,6 +50,9 @@ importers:
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@7.2.0)
+      ipaddr.js:
+        specifier: ^2.5.0
+        version: 2.5.0
       multer:
         specifier: ^2.5.0
         version: 2.5.0
@@ -58,7 +61,7 @@ importers:
         version: 10.2.1
       openai:
         specifier: ^7.45.1
-        version: 7.45.1(zod@4.6.7)
+        version: 7.45.1(undici@8.12.3)(zod@4.6.7)
       pdfkit:
         specifier: ^0.20.2
         version: 0.20.2
@@ -71,6 +74,9 @@ importers:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
+      undici:
+        specifier: ^8.12.3
+        version: 8.12.3
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -2177,6 +2183,10 @@ packages:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
     engines: {node: '>= 0.10'}
 
+  ipaddr.js@2.5.0:
+    resolution: {integrity: sha512-aq+t5NAc+cS6rZQQVWC2x98CPqGtKKTMDd4Gaodv0wShnItdKg/51djkGJ1hqH+Oy0ivDftCbSLCQob8zso01w==}
+    engines: {node: '>= 10'}
+
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
@@ -2992,6 +3002,10 @@ packages:
 
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
+
+  undici@8.12.3:
+    resolution: {integrity: sha512-+fdndUTwBP86cVjihTp21hZHo7d6oj1c/47XPA3lL8mM0XHs+C4EkcjmgRsFnFk2f/UONGDy9ItBItmXsLOQHw==}
+    engines: {node: '>=22.19.0'}
 
   unicode-properties@1.4.1:
     resolution: {integrity: sha512-CLjCCLQ6UuMxWnbIylkisbRj31qxHPAurvena/0iwSVbQ2G1VY5/HjV0IRabOEbDHlzZlRdCrD4NhB0JtU40Pg==}
@@ -4794,6 +4808,8 @@ snapshots:
 
   ipaddr.js@1.9.1: {}
 
+  ipaddr.js@2.5.0: {}
+
   is-extglob@2.1.1: {}
 
   is-glob@4.0.3:
@@ -5083,8 +5099,9 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@7.45.1(zod@4.6.7):
+  openai@7.45.1(undici@8.12.3)(zod@4.6.7):
     optionalDependencies:
+      undici: 8.12.3
       zod: 4.6.7
 
   optionator@0.9.4:
@@ -5536,6 +5553,8 @@ snapshots:
   uint8array-extras@1.6.0: {}
 
   undici-types@8.9.0: {}
+
+  undici@8.12.3: {}
 
   unicode-properties@1.4.1:
     dependencies:
