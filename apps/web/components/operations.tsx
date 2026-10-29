@@ -21,6 +21,8 @@ import {
   Bot,
   User,
   FileText,
+  MessageSquare,
+  Trash2,
 } from "lucide-react";
 import { Button, Badge, Empty } from "./ui";
 import type { API } from "./forms";
@@ -242,8 +244,74 @@ export function AIWorkspace({
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [showSessionsMobile, setShowSessionsMobile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const sessions = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        sessionId: string;
+        title: string;
+        kind: string;
+        createdAt: string;
+        jobs: RecordData[];
+      }
+    >();
+    for (const j of jobs) {
+      const k = j.kind;
+      if (mode === "design" && k !== "DESIGN") continue;
+      if (mode === "assistant" && k !== "ASSISTANT") continue;
+      const sid = (j.input as any)?.sessionId || j.id;
+      if (!map.has(sid)) {
+        const promptText = (j.input as any)?.text || j.text || "";
+        const title =
+          promptText.length > 22
+            ? promptText.slice(0, 22) + "…"
+            : promptText || (mode === "design" ? t("AI concept") : t("AI Assistant"));
+        map.set(sid, {
+          sessionId: sid,
+          title,
+          kind: k,
+          createdAt: j.createdAt,
+          jobs: [],
+        });
+      }
+      map.get(sid)!.jobs.push(j);
+    }
+    return Array.from(map.values());
+  }, [jobs, mode, t]);
+
+  const currentSession =
+    sessions.find((s) => s.sessionId === activeSessionId) ||
+    (activeSessionId && !activeSessionId.startsWith("new_") ? null : sessions[0]);
+  const activeId = currentSession?.sessionId || "";
+  const activeJobs = currentSession ? [...currentSession.jobs].reverse() : [];
+
+  const handleNewChat = () => {
+    setActiveSessionId("new_" + Date.now());
+    setPrompt("");
+    setFile(null);
+    setError("");
+    setShowSessionsMobile(false);
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, sid: string) => {
+    e.stopPropagation();
+    if (!window.confirm(t("Delete this conversation? This cannot be undone.")))
+      return;
+    try {
+      await api(`ai/sessions/${encodeURIComponent(sid)}`, "DELETE");
+      if (activeId === sid) {
+        setActiveSessionId("");
+      }
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -257,14 +325,20 @@ export function AIWorkspace({
         upload.set("file", file);
         fileId = (await api("files", "POST", upload)).id;
       }
+      const targetSessionId =
+        activeId.startsWith("new_") || !activeId
+          ? crypto.randomUUID()
+          : activeId;
       await api("ai/jobs", "POST", {
         kind: mode === "design" ? "DESIGN" : "ASSISTANT",
         text: prompt.trim() || (file ? file.name : t("Process attachment")),
         fileId,
+        sessionId: targetSessionId,
       });
       setPrompt("");
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      setActiveSessionId(targetSessionId);
       refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -275,19 +349,74 @@ export function AIWorkspace({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [jobs.length, busy]);
-
-  const chronologicalJobs = [...jobs].reverse();
+  }, [activeJobs.length, busy]);
 
   return (
-    <div className="chat-container">
+    <div className="chat-layout">
+      <aside className={`chat-sidebar ${showSessionsMobile ? "open" : ""}`}>
+        <div className="chat-sidebar-header">
+          <Button
+            type="button"
+            className="primary chat-new-chat-btn"
+            onClick={handleNewChat}
+          >
+            <Plus size={15} />
+            <span>{t("New chat")}</span>
+          </Button>
+        </div>
+        <div className="chat-sessions-list">
+          <div className="chat-sessions-heading">{t("Chat history")}</div>
+          {sessions.length === 0 ? (
+            <p className="muted chat-no-sessions">{t("No saved conversations")}</p>
+          ) : (
+            sessions.map((s) => (
+              <div
+                key={s.sessionId}
+                className={`chat-session-item ${s.sessionId === activeId ? "active" : ""}`}
+                onClick={() => {
+                  setActiveSessionId(s.sessionId);
+                  setShowSessionsMobile(false);
+                }}
+              >
+                <MessageSquare size={14} className="chat-session-icon" />
+                <div className="chat-session-info">
+                  <span className="chat-session-title">{s.title}</span>
+                  <time className="chat-session-time">
+                    {formatDate(s.createdAt, locale, "date")}
+                  </time>
+                </div>
+                <button
+                  type="button"
+                  className="chat-session-delete"
+                  title={t("Delete conversation")}
+                  aria-label={t("Delete conversation")}
+                  onClick={(e) => handleDeleteSession(e, s.sessionId)}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </aside>
+      <div className="chat-container">
       <div className="chat-header">
         <div className="chat-header-info">
+          <div className="chat-header-row">
+            <Button
+              type="button"
+              className="btn-icon mobile-only chat-toggle-btn"
+              onClick={() => setShowSessionsMobile(!showSessionsMobile)}
+              aria-label={t("Chat history")}
+            >
+              <MessageSquare size={16} />
+            </Button>
           <h3>
             {mode === "design"
               ? t("Create an interior concept")
               : t("Ask your business assistant")}
           </h3>
+          </div>
           <p className="muted">
             {mode === "design"
               ? t(
@@ -316,7 +445,7 @@ export function AIWorkspace({
       )}
 
       <div className="chat-stream">
-        {chronologicalJobs.length === 0 ? (
+        {activeJobs.length === 0 ? (
           <div className="chat-welcome-hero">
             <div className="chat-welcome-icon">
               <Sparkles size={24} />
@@ -360,7 +489,7 @@ export function AIWorkspace({
             </div>
           </div>
         ) : (
-          chronologicalJobs.map((j) => (
+          activeJobs.map((j) => (
             <div key={j.id} className="chat-exchange">
               <div className="chat-msg-row user">
                 <div className="chat-bubble user">
@@ -522,6 +651,7 @@ export function AIWorkspace({
               )}
         </p>
       </div>
+    </div>
     </div>
   );
 }

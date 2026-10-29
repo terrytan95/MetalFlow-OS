@@ -741,6 +741,18 @@ export const zh: Record<string, string> = {
   "Applies across every module and saves automatically in this browser.":
     "设置将应用于所有模块，并在当前浏览器自动保存。",
   "Workspace preview": "工作区预览",
+  "New chat": "新建对话",
+  "Chat history": "历史对话",
+  "No saved conversations": "暂无历史对话",
+  "Delete conversation": "删除对话",
+  "Delete this conversation? This cannot be undone.": "确定删除此对话记录？此操作无法撤销。",
+  "AI conversation history": "AI 对话历史记录",
+  "Clear all AI history": "清空所有 AI 历史记录",
+  "Clear all AI conversation history? This cannot be undone.":
+    "确定清空所有 AI 对话记录？所有历史聊天与设计记录都将被彻底删除。",
+  "AI conversation history cleared": "已清空所有 AI 对话历史记录",
+  "Clear all saved AI conversation and design sessions. This cannot be undone.":
+    "清空当前工作区中保存的所有 AI 助手与设计会话记录。清除后无法恢复。",
   "OCR photo import": "拍照／上传单据智能识别",
   "Recognizing document…": "正在识别单据内容…",
   "Recognizing with AI…": "正在智能分析提取…",

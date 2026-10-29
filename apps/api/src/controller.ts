@@ -989,10 +989,46 @@ export class AppController {
     return {
       items: await db.aIJob.findMany({
         where: { organizationId: c.organizationId, createdBy: c.userId },
-        take: 30,
+        take: 100,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     };
+  }
+  @Delete("ai/sessions/:sessionId") async deleteSession(
+    @Req() req: Request,
+    @Param("sessionId") sessionId: string,
+  ) {
+    const c = await context(req);
+    const jobs = await db.aIJob.findMany({
+      where: { organizationId: c.organizationId, createdBy: c.userId },
+      select: { id: true, input: true },
+    });
+    const toDelete = jobs
+      .filter((j: any) => j.id === sessionId || j.input?.sessionId === sessionId)
+      .map((j) => j.id);
+    if (toDelete.length) {
+      await db.aIJob.deleteMany({
+        where: { id: { in: toDelete } },
+      });
+    }
+    return { success: true, count: toDelete.length };
+  }
+  @Delete("ai/jobs/:id") async deleteJob(
+    @Req() req: Request,
+    @Param("id") id: string,
+  ) {
+    const c = await context(req);
+    await db.aIJob.deleteMany({
+      where: { id, organizationId: c.organizationId, createdBy: c.userId },
+    });
+    return { success: true };
+  }
+  @Delete("ai/history") async clearHistory(@Req() req: Request) {
+    const c = await context(req);
+    const result = await db.aIJob.deleteMany({
+      where: { organizationId: c.organizationId, createdBy: c.userId },
+    });
+    return { success: true, count: result.count };
   }
   @Post("ai/extract")
   @UseInterceptors(
@@ -1096,6 +1132,7 @@ export class AppController {
         fileId: z.string().optional(),
         inquiryId: z.string().optional(),
         providerId: z.string().uuid().optional(),
+        sessionId: z.string().optional(),
       })
       .parse(raw);
     let selected: { providerId: string | null; model: string };
@@ -1123,7 +1160,7 @@ export class AppController {
         data: {
           organizationId: c.organizationId,
           kind: x.kind,
-          input: json({ ...x, providerId: selected.providerId }),
+          input: json({ ...x, sessionId: x.sessionId || randomUUID(), providerId: selected.providerId }),
           model,
           createdBy: c.userId,
         },
