@@ -139,3 +139,7 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Upgraded top header "+ 快速创建" button into an accessible dropdown menu providing instant one-click creation across CRM, supply chain, operations, and finance.
 - Categorized options into Sales (Customer, Inquiry, Quotation, Order), Supply Chain (Product, Inventory Adjust, Stock Transfer, Purchase Order, Supplier), Operations (Fabrication, Project, Task), and Finance (Invoice, Credit Note) with permission filtering.
 - Integrated click-outside and Escape key closing with smooth chevron rotation animation.
+
+## Expanded AI chat canvas & input width (2026-10-29)
+- Expanded `.chat-container` maximum width from 980px to 1400px and pill input dock to 1080px to utilize wide desktop displays and eliminate excess side margin voids.
+- Enlarged welcome hero card and prompt suggestion grid to 880px with increased 90% message bubble row span.

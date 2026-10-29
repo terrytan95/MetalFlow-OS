@@ -2430,8 +2430,8 @@ html[lang^="zh"] .page-heading p {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
-  height: min(780px, calc(100vh - 150px));
-  max-width: 980px;
+  height: min(840px, calc(100vh - 140px));
+  max-width: 1400px;
   margin: 0 auto;
   overflow: hidden;
 }
@@ -2473,7 +2473,7 @@ html[lang^="zh"] .page-heading p {
   text-align: center;
   padding: 40px 16px 20px;
   margin: auto;
-  max-width: 680px;
+  max-width: 880px;
 }
 .chat-welcome-icon {
   width: 48px;
@@ -2495,13 +2495,14 @@ html[lang^="zh"] .page-heading p {
   margin: 0;
   font-size: calc(13px * var(--text-scale, 1));
   color: var(--muted);
-  max-width: 520px;
+  max-width: 680px;
 }
 .chat-suggestions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
   width: 100%;
+  max-width: 880px;
   margin-top: 24px;
 }
 .chat-suggestion-chip {
@@ -2529,7 +2530,7 @@ html[lang^="zh"] .page-heading p {
 .chat-msg-row {
   display: flex;
   gap: 10px;
-  max-width: 85%;
+  max-width: 90%;
 }
 .chat-msg-row.user {
   margin-left: auto;
@@ -2681,7 +2682,7 @@ html[lang^="zh"] .page-heading p {
   align-items: center;
   gap: 8px;
   width: 100%;
-  max-width: 820px;
+  max-width: 1080px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 28px;
