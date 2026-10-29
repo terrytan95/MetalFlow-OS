@@ -73,3 +73,7 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Replaced the prior literal-only i18n check with attribute/template/fallback/formatting/schema checks and explicit regression fixtures. The standard lint command now runs this gate.
 - 33 unit tests and all 7 Playwright scenarios passed. The final populated Chinese audit plus completion workflow rerun passed (29.9s), including all 28 navigation pages, calendar month labels, native/backend validation, CSV/BOM exports, name preservation and mobile layout. API business regression, production build and dependency audit passed. PR #3 merged (9583df3); production rollout and health checks passed. Production images match the tested images, test mode is disabled.
 - Test environment: task checkout fix/complete-chinese-localization, pnpm; @playwright/test/playwright/playwright-core declared ^1.64.1, locked/installed 1.64.1; bundled headless Chromium 156.0.8078.4, 1440×1000 and 390×844 viewports; isolated VPS Compose via localhost:3411. No production business data was seeded.
+
+## Mobile Viewport Polish (2026-10-29)
+- Fixed mobile authentication form width and padding to ensure exactly 390px viewport fit without horizontal scrollbar.
+- Re-verified full Chinese login screen rendering and form validity messages via headless Chromium on production environment.
