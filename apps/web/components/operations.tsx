@@ -9,7 +9,18 @@ import {
 import { RecordDetails } from "./record-details";
 import { useI18n } from "../lib/i18n";
 import { useState, useRef, useEffect } from "react";
-import { Scissors, Sparkles, Plus } from "lucide-react";
+import {
+  Scissors,
+  Sparkles,
+  Plus,
+  ArrowUp,
+  Paperclip,
+  X,
+  RefreshCw,
+  Bot,
+  User,
+  FileText,
+} from "lucide-react";
 import { Button, Badge, Empty } from "./ui";
 import type { API } from "./forms";
 import type { RecordData } from "./data";
@@ -195,18 +206,281 @@ export function AIWorkspace({
   refresh: () => void;
 }) {
   const { t, locale } = useI18n();
+  const [prompt, setPrompt] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!enabled || busy || (!prompt.trim() && !file)) return;
+    setBusy(true);
+    setError("");
+    try {
+      let fileId: string | undefined;
+      if (file) {
+        const upload = new FormData();
+        upload.set("file", file);
+        fileId = (await api("files", "POST", upload)).id;
+      }
+      await api("ai/jobs", "POST", {
+        kind: mode === "design" ? "DESIGN" : "ASSISTANT",
+        text: prompt.trim() || (file ? file.name : t("Process attachment")),
+        fileId,
+      });
+      setPrompt("");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [jobs.length, busy]);
+
+  const chronologicalJobs = [...jobs].reverse();
+
   return (
-    <div className="split-workspace">
-      <section className="panel">
-        <h3>
-          {mode === "design"
-            ? t("Create an interior concept")
-            : t("Ask your business assistant")}
-        </h3>
-        <p className="muted">
+    <div className="chat-container">
+      <div className="chat-header">
+        <div className="chat-header-info">
+          <h3>
+            {mode === "design"
+              ? t("Create an interior concept")
+              : t("Ask your business assistant")}
+          </h3>
+          <p className="muted">
+            {mode === "design"
+              ? t(
+                  "Concept images support a design discussion. They are not construction drawings.",
+                )
+              : t(
+                  "Draft, extract and explain. AI cannot send messages or modify financial records.",
+                )}
+          </p>
+        </div>
+        <Button onClick={refresh} title={t("Refresh")}>
+          <RefreshCw size={14} />
+          <span>{t("Refresh")}</span>
+        </Button>
+      </div>
+
+      {!enabled && (
+        <div className="notice chat-notice">
+          <strong>{t("Configuration required")}</strong>
+          <p>
+            {t(
+              "Ask an organization administrator to configure an AI provider, model and API key in Settings. AI generation is disabled until configured.",
+            )}
+          </p>
+        </div>
+      )}
+
+      <div className="chat-stream">
+        {chronologicalJobs.length === 0 ? (
+          <div className="chat-welcome-hero">
+            <div className="chat-welcome-icon">
+              <Sparkles size={24} />
+            </div>
+            <h4>
+              {mode === "design"
+                ? t("Explore architectural & interior concepts")
+                : t("How can I help with your operations today?")}
+            </h4>
+            <p className="muted">
+              {mode === "design"
+                ? t(
+                    "Modern retail interior, brushed stainless steel shelving, warm neutral tones…",
+                  )
+                : t(
+                    "Paste the quotation or project context you want to review…",
+                  )}
+            </p>
+            <div className="chat-suggestions-grid">
+              {(mode === "design"
+                ? [
+                    t("Modern retail interior, brushed stainless steel shelving, warm neutral tones…"),
+                    t("Industrial metal frame glass partitions"),
+                    t("Champagne curved aluminum reception desk"),
+                  ]
+                : [
+                    t("Analyze receivable aging & payment risks"),
+                    t("Draft material supply quality & acceptance terms"),
+                    t("Paste the quotation or project context you want to review…"),
+                  ]
+              ).map((s, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="chat-suggestion-chip"
+                  onClick={() => setPrompt(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          chronologicalJobs.map((j) => (
+            <div key={j.id} className="chat-exchange">
+              <div className="chat-msg-row user">
+                <div className="chat-bubble user">
+                  {j.input?.fileId && (
+                    <div className="chat-msg-attachment">
+                      <FileText size={14} />
+                      <span>{t("Reference image or document")}</span>
+                    </div>
+                  )}
+                  <div className="chat-msg-text">{j.input?.text || j.text}</div>
+                  <div className="chat-msg-meta">
+                    <time>{formatDate(j.createdAt, locale, "time")}</time>
+                  </div>
+                </div>
+                <div className="chat-avatar user">
+                  <User size={15} />
+                </div>
+              </div>
+
+              <div className="chat-msg-row assistant">
+                <div className="chat-avatar assistant">
+                  <Bot size={15} />
+                </div>
+                <div className="chat-bubble assistant">
+                  <div className="chat-bubble-header">
+                    <span className="chat-model-tag">{j.model || t("AI Assistant")}</span>
+                    <Badge value={j.status} />
+                    <time>{formatDate(j.createdAt, locale, "time")}</time>
+                  </div>
+                  {j.status === "QUEUED" && (
+                    <p className="muted chat-status-msg">
+                      <span>{t("Job queued, please wait…")}</span>
+                    </p>
+                  )}
+                  {j.status === "RUNNING" && (
+                    <p className="muted chat-status-msg">
+                      <RefreshCw size={14} className="spin" />
+                      <span>{t("Generating response…")}</span>
+                    </p>
+                  )}
+                  {j.status === "SUCCEEDED" && (
+                    <div className="chat-msg-content">
+                      {j.result?.text && (
+                        <div className="chat-msg-text pre-wrap">{j.result.text}</div>
+                      )}
+                      {j.result?.fileId && (
+                        <div className="chat-generated-image">
+                          <SecureImage api={api} id={j.result.fileId} />
+                        </div>
+                      )}
+                      {!j.result?.text && !j.result?.fileId && j.result && (
+                        <RecordDetails data={j.result} />
+                      )}
+                    </div>
+                  )}
+                  {j.error && (
+                    <p className="error" role="alert">
+                      {t(j.error)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="chat-dock">
+        {file && (
+          <div className="chat-attachment-pill">
+            <Paperclip size={13} />
+            <span className="chat-file-name">{file.name}</span>
+            <span className="chat-file-size">
+              {t("({size} KB)", { size: (file.size / 1024).toFixed(0) })}
+            </span>
+            <button
+              type="button"
+              className="chat-file-remove"
+              onClick={() => {
+                setFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              aria-label={t("Dismiss")}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
+        <form className="chat-input-pill" onSubmit={handleSubmit}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="sr-only"
+            accept="image/png,image/jpeg,image/webp,application/pdf"
+            disabled={!enabled}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) setFile(f);
+            }}
+          />
+          <button
+            type="button"
+            className="chat-btn-plus"
+            disabled={!enabled}
+            onClick={() => fileInputRef.current?.click()}
+            title={t("Reference image or document")}
+            aria-label={t("Reference image or document")}
+          >
+            <Plus size={18} />
+          </button>
+          <textarea
+            rows={1}
+            value={prompt}
+            disabled={!enabled}
+            onChange={(e) => {
+              setPrompt(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void handleSubmit();
+              }
+            }}
+            className="chat-textarea"
+            placeholder={
+              mode === "design"
+                ? t(
+                    "Modern retail interior, brushed stainless steel shelving, warm neutral tones…",
+                  )
+                : t(
+                    "Paste the quotation or project context you want to review…",
+                  )
+            }
+          />
+          <button
+            type="submit"
+            className="chat-btn-send"
+            disabled={!enabled || busy || (!prompt.trim() && !file)}
+            title={t("Create AI job")}
+            aria-label={t("Create AI job")}
+          >
+            <ArrowUp size={16} />
+          </button>
+        </form>
+
+        {error && <p className="error chat-error">{t(error)}</p>}
+
+        <p className="chat-disclaimer">
           {mode === "design"
             ? t(
                 "Concept images support a design discussion. They are not construction drawings.",
@@ -215,109 +489,7 @@ export function AIWorkspace({
                 "Draft, extract and explain. AI cannot send messages or modify financial records.",
               )}
         </p>
-        {!enabled && (
-          <div className="notice">
-            <strong>{t("Configuration required")}</strong>
-            <p>
-              {" "}
-              {t(
-                "Ask an organization administrator to configure an AI provider, model and API key in Settings. AI generation is disabled until configured.",
-              )}{" "}
-            </p>
-          </div>
-        )}
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            try {
-              const form = new FormData(e.currentTarget);
-              let fileId;
-              const f = form.get("file") as File;
-              if (f?.size) {
-                const upload = new FormData();
-                upload.set("file", f);
-                fileId = (await api("files", "POST", upload)).id;
-              }
-              await api("ai/jobs", "POST", {
-                kind: mode === "design" ? "DESIGN" : "ASSISTANT",
-                text: String(form.get("prompt")),
-                fileId,
-              });
-              refresh();
-              setError("");
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <label>
-            {" "}
-            {t("Brief")}{" "}
-            <textarea
-              name="prompt"
-              rows={7}
-              required
-              placeholder={
-                mode === "design"
-                  ? t(
-                      "Modern retail interior, brushed stainless steel shelving, warm neutral tones…",
-                    )
-                  : t(
-                      "Paste the quotation or project context you want to review…",
-                    )
-              }
-            />
-          </label>
-          <label>
-            {" "}
-            {t("Reference image or document")}{" "}
-            <FileInput
-              aria-label={t("Reference image or document")}
-              name="file"
-
-              accept="image/png,image/jpeg,image/webp,application/pdf"
-              disabled={!enabled}
-            />
-          </label>
-          <Button className="primary mt" disabled={!enabled || busy}>
-            <Sparkles size={16} />
-            {busy ? t("Submitting…") : t("Create AI job")}
-          </Button>
-        </form>
-        {error && <p className="error">{t(error)}</p>}
-      </section>
-      <section className="panel">
-        <div className="panel-title">
-          <h3>{t("Your recent jobs")}</h3>
-          <Button onClick={refresh}>{t("Refresh")}</Button>
-        </div>
-        {jobs.length ? (
-          jobs.map((j) => (
-            <article className="job" key={j.id}>
-              <div className="panel-title">
-                <strong>{t(j.kind)}</strong>
-                <Badge value={j.status} />
-              </div>
-              <p className="muted">
-                {formatDate(j.createdAt, locale, "datetime")} · {j.model}
-              </p>
-              {j.result && <RecordDetails data={j.result} />}
-              {j.result?.fileId && (
-                <SecureImage api={api} id={j.result.fileId} />
-              )}
-              {j.error && <p className="error">{t(j.error)}</p>}
-            </article>
-          ))
-        ) : (
-          <Empty
-            title={t("No AI jobs yet")}
-            description={t("Submitted work and its status will appear here.")}
-          />
-        )}
-      </section>
+      </div>
     </div>
   );
 }

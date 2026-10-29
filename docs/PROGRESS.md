@@ -124,3 +124,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Substantially increased baseline typography across all tiers from 13px to 15px base (small: 14px, standard: 15px, large: 16.5px, extra large: 18px) for high readability across tables, inputs, labels, headings and sidebars.
 - Added contextual and localized placeholder hints to all input and textarea fields across ResourceForm, DocumentForm, auth screens, settings, takeoffs and modal dialogs.
 - Refined component spacing and reduced dead whitespace: tightened form label margins, notice boxes, modal footers, and quote line margins.
+
+## Conversational ChatGPT-style AI Workspace (2026-10-29)
+- Transformed the static dual-panel AI assistant and design views into a modern ChatGPT-style conversational chat stream with user and assistant speech bubbles.
+- Replaced legacy form submit with pill-shaped input dock featuring a dedicated plus (+) button for file attachments, auto-expanding textarea, round send button, and disclaimer notes.
+- Maintained compatibility with AI job generation, concept image rendering, model tags, and empty state prompt suggestions.
