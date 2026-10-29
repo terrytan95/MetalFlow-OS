@@ -181,6 +181,7 @@ function Application() {
     [formError, setFormError] = useState(""),
     [palette, setPalette] = useState(""),
     [range, setRange] = useState("30");
+  const [confirmClearAi, setConfirmClearAi] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const quickCreateRef = useRef<HTMLDivElement>(null);
   const [smallScreen, setSmallScreen] = useState(false);
@@ -1504,20 +1505,7 @@ function Application() {
                 <Button
                   type="button"
                   className="btn-danger mt"
-                  onClick={async () => {
-                    const confirmMsg =
-                      t("Clear all AI conversation history? This cannot be undone.");
-                    if (!window.confirm(confirmMsg)) return;
-                    try {
-                      await api("ai/history", "DELETE");
-                      refresh();
-                      setMessage(
-                        t("AI conversation history cleared"),
-                      );
-                    } catch (e) {
-                      setFormError((e as Error).message);
-                    }
-                  }}
+                  onClick={() => setConfirmClearAi(true)}
                 >
                   <Trash2 size={15} />
                   <span>{t("Clear all AI history")}</span>
@@ -2055,6 +2043,40 @@ function Application() {
               {t("INV-2026 ·")} {money("1240")}
             </span>
           </div>
+        </div>
+      </Modal>
+      <Modal
+        open={confirmClearAi}
+        onClose={() => setConfirmClearAi(false)}
+        title={t("Clear all AI history")}
+      >
+        <p className="modal-confirm-text">
+          {t("Clear all AI conversation history? This cannot be undone.")}
+        </p>
+        <div className="actions modal-confirm-actions">
+          <Button
+            type="button"
+            onClick={() => setConfirmClearAi(false)}
+          >
+            {t("Cancel")}
+          </Button>
+          <Button
+            type="button"
+            className="btn-danger"
+            onClick={async () => {
+              setConfirmClearAi(false);
+              try {
+                await api("ai/history", "DELETE");
+                refresh();
+                setMessage(t("AI conversation history cleared"));
+              } catch (e) {
+                setFormError((e as Error).message);
+              }
+            }}
+          >
+            <Trash2 size={14} />
+            <span>{t("Clear all AI history")}</span>
+          </Button>
         </div>
       </Modal>
       <Modal
