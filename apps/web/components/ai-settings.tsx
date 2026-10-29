@@ -395,6 +395,7 @@ export function AIProviderSettings({
                 defaultValue={editing.name || ""}
                 required
                 maxLength={100}
+                placeholder={t("e.g. Primary DeepSeek Model")}
               />
             </label>
             {!editing.id && (
@@ -535,6 +536,7 @@ export function AIProviderSettings({
                 required
                 minLength={16}
                 maxLength={4096}
+                placeholder={t("sk-your-key-here")}
               />
             </label>
             <p className="muted mt">
@@ -550,6 +552,7 @@ export function AIProviderSettings({
                   type="number"
                   min={1}
                   max={1000000}
+                  placeholder="1000"
                 />
               </label>
               <label>
@@ -560,6 +563,7 @@ export function AIProviderSettings({
                   type="number"
                   min={1}
                   max={1000000000}
+                  placeholder="1000000"
                 />
               </label>
             </div>

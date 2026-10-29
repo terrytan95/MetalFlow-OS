@@ -122,7 +122,12 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
               <label>
                 {" "}
                 {t("Full name")}{" "}
-                <input name="name" required autoComplete="name" />
+                <input
+                  name="name"
+                  required
+                  autoComplete="name"
+                  placeholder={t("Your full name")}
+                />
               </label>
             )}
             <label>
@@ -145,10 +150,10 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
                   type="password"
                   minLength={12}
                   required
+                  placeholder={t("At least 12 characters")}
                   autoComplete={
                     mode === "signup" ? "new-password" : "current-password"
                   }
-                  placeholder={t("At least 12 characters")}
                 />
               </label>
             )}
@@ -251,7 +256,13 @@ export function Onboarding({ api, done }: { api: API; done: () => void }) {
         >
           <label>
             {" "}
-            {t("Company name")} <input name="name" required minLength={2} />
+            {t("Company name")}{" "}
+            <input
+              name="name"
+              required
+              minLength={2}
+              placeholder={t("e.g. Acme Metal Supply Co.")}
+            />
           </label>
           <label>
             {" "}
@@ -295,6 +306,7 @@ export function Onboarding({ api, done }: { api: API; done: () => void }) {
                 maxLength={2}
                 defaultValue="US"
                 required
+                placeholder={t("US / CN")}
               />
             </label>
             <label>
@@ -406,6 +418,7 @@ export function ResetPasswordScreen({
               minLength={12}
               required
               autoComplete="new-password"
+              placeholder={t("At least 12 characters")}
             />
           </label>
           <Button className="primary mt">{t("Reset password")}</Button>

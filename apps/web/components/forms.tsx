@@ -139,6 +139,9 @@ export function ResourceForm({
             ) : f.type === "textarea" || f.type === "json" ? (
               <textarea
                 rows={4}
+                placeholder={t("Fill {field}…", {
+                  field: fieldLabel(f.key, locale),
+                })}
                 {...register(f.key, { required: f.required })}
               />
             ) : (
@@ -146,6 +149,13 @@ export function ResourceForm({
                 type={f.type === "tags" ? "text" : f.type || "text"}
                 step="0.0001"
                 min={f.type === "number" ? "0" : undefined}
+                placeholder={
+                  f.type === "number"
+                    ? "0.00"
+                    : t("Enter {field}…", {
+                        field: fieldLabel(f.key, locale),
+                      })
+                }
                 {...register(f.key, { required: f.required })}
               />
             )}
@@ -331,6 +341,7 @@ export function DocumentForm({
               {t("Description")}{" "}
               <input
                 required
+                placeholder={t("Item description or service…")}
                 value={l.description}
                 onChange={(e) => update(i, { description: e.target.value })}
               />
@@ -344,6 +355,7 @@ export function DocumentForm({
                   type="number"
                   min="0.0001"
                   step="0.0001"
+                  placeholder="1.0000"
                   value={l.quantity}
                   onChange={(e) => update(i, { quantity: e.target.value })}
                 />
@@ -381,6 +393,7 @@ export function DocumentForm({
                   type="number"
                   min="0"
                   step="0.0001"
+                  placeholder="0.00"
                   value={l.unitPrice}
                   onChange={(e) => update(i, { unitPrice: e.target.value })}
                 />
@@ -436,6 +449,7 @@ export function DocumentForm({
             type="number"
             min="0"
             step="0.01"
+            placeholder="0.00"
             value={discount}
             onChange={(e) => setDiscount(e.target.value)}
           />
@@ -448,6 +462,7 @@ export function DocumentForm({
             min="0"
             max="100"
             step="0.01"
+            placeholder="0.00"
             value={tax}
             onChange={(e) => setTax(e.target.value)}
           />
@@ -455,7 +470,11 @@ export function DocumentForm({
         <label className="span-2">
           {" "}
           {t("Terms & notes")}{" "}
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <textarea
+            placeholder={t("Delivery terms, payment terms or special notes…")}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
         </label>
       </div>
       <div className="totals">
