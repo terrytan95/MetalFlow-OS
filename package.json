@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate deploy --schema packages/database/prisma/schema.prisma",
     "test:e2e": "playwright test",
     "format": "prettier --write apps packages tests scripts",
-    "lint": "eslint apps packages tests"
+    "lint": "eslint apps packages tests && pnpm check:i18n",
+    "check:i18n": "tsx scripts/check-i18n.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.3.2",

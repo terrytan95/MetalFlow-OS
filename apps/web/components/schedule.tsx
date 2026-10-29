@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { formatDate, formatNumber, localeTag } from "../lib/localization";
 import { useI18n } from "../lib/i18n";
 import { Button, Badge, Empty } from "./ui";
 import type { API } from "./forms";
@@ -50,12 +51,42 @@ export function Schedule({
           <Button aria-label={t("Previous month")} onClick={() => shift(-1)}>
             <ChevronLeft size={16} />
           </Button>
-          <input
+          <div
+            className="month-controls"
+            role="group"
             aria-label={t("This month")}
-            type="month"
-            value={month}
-            onChange={(e) => e.target.value && setMonth(e.target.value)}
-          />
+          >
+            <input
+              aria-label={t("Year")}
+              type="number"
+              min={1900}
+              max={9999}
+              value={start.getUTCFullYear()}
+              onChange={(e) => {
+                const year = Number(e.target.value);
+                if (Number.isInteger(year) && year >= 1900 && year <= 9999)
+                  setMonth(`${year}-${month.slice(5)}`);
+              }}
+            />
+            <select
+              aria-label={t("Month")}
+              value={start.getUTCMonth() + 1}
+              onChange={(e) =>
+                setMonth(
+                  `${start.getUTCFullYear()}-${e.target.value.padStart(2, "0")}`,
+                )
+              }
+            >
+              {Array.from({ length: 12 }, (_, index) => (
+                <option key={index} value={index + 1}>
+                  {new Intl.DateTimeFormat(localeTag(locale), {
+                    month: "long",
+                    timeZone: "UTC",
+                  }).format(new Date(Date.UTC(2026, index, 1)))}
+                </option>
+              ))}
+            </select>
+          </div>
           <Button aria-label={t("Next month")} onClick={() => shift(1)}>
             <ChevronRight size={16} />
           </Button>
@@ -75,7 +106,7 @@ export function Schedule({
                 key={r.id}
                 onClick={() => onSelect(r)}
               >
-                <time>{new Date(r.dueDate).toLocaleDateString(locale)}</time>
+                <time>{formatDate(r.dueDate, locale)}</time>
                 <strong>{r.name}</strong>
                 <Badge value={r.status} />
               </button>
@@ -85,22 +116,34 @@ export function Schedule({
           )}
         </div>
       ) : (
-        <div className="calendar-grid">
-          {Array.from({ length: start.getUTCDay() }, (_, i) => (
-            <div key={"blank" + i} className="calendar-day blank" />
-          ))}
-          {Array.from({ length: end.getUTCDate() }, (_, i) => (
-            <div key={i} className="calendar-day">
-              <time>{i + 1}</time>
-              {groups.get(i + 1)?.map((r) => (
-                <button key={r.id} onClick={() => onSelect(r)}>
-                  <span>{r.name}</span>
-                  <Badge value={r.status} />
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="calendar-weekdays">
+            {Array.from({ length: 7 }, (_, i) => (
+              <span key={i}>
+                {new Intl.DateTimeFormat(localeTag(locale), {
+                  weekday: "short",
+                  timeZone: "UTC",
+                }).format(new Date(Date.UTC(2026, 0, 4 + i)))}
+              </span>
+            ))}
+          </div>
+          <div className="calendar-grid">
+            {Array.from({ length: start.getUTCDay() }, (_, i) => (
+              <div key={"blank" + i} className="calendar-day blank" />
+            ))}
+            {Array.from({ length: end.getUTCDate() }, (_, i) => (
+              <div key={i} className="calendar-day">
+                <time>{formatNumber(i + 1, locale)}</time>
+                {groups.get(i + 1)?.map((r) => (
+                  <button key={r.id} onClick={() => onSelect(r)}>
+                    <span>{r.name}</span>
+                    <Badge value={r.status} />
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

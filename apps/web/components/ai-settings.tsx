@@ -1,4 +1,5 @@
 "use client";
+import { formatDate, formatNumber } from "../lib/localization";
 import { useI18n } from "../lib/i18n";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -22,7 +23,7 @@ export function AIProviderSettings({
   organizationId: string;
   onChanged: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [editing, setEditing] = useState<RecordData | null>(null),
     [editingKey, setEditingKey] = useState<{
@@ -189,17 +190,20 @@ export function AIProviderSettings({
                             <small className="key-suffix">
                               {" "}
                               {t("Until")}{" "}
-                              {new Date(key.cooldownUntil).toLocaleTimeString()}
+                              {formatDate(key.cooldownUntil, locale, "time")}
                             </small>
                           )}
                       </td>
                       <td>
                         {key.dailyRequests} {t("requests")} <br />
-                        {key.dailyTokens.toLocaleString()} {t("tokens")}{" "}
+                        {formatNumber(key.dailyTokens, locale)}{" "}
+                        {t("tokens")}{" "}
                       </td>
                       <td>
                         {key.dailyRequestLimit || "∞"} {t("requests")} <br />
-                        {key.dailyTokenLimit?.toLocaleString() || "∞"}{" "}
+                        {key.dailyTokenLimit
+                          ? formatNumber(key.dailyTokenLimit, locale)
+                          : "∞"}{" "}
                         {t("tokens")}{" "}
                       </td>
                       <td>
@@ -210,7 +214,8 @@ export function AIProviderSettings({
                         <small className="key-suffix">
                           {" "}
                           {t("Lifetime:")} {key.totalRequests} {t("requests ·")}{" "}
-                          {key.totalTokens} {t("tokens")}{" "}
+                          {formatNumber(BigInt(key.totalTokens), locale)}{" "}
+                          {t("tokens")}{" "}
                         </small>
                       </td>
                       <td>
@@ -252,7 +257,9 @@ export function AIProviderSettings({
                             <RefreshCw size={13} /> {t("Reset health")}{" "}
                           </Button>
                           <Button
-                            aria-label={`Delete key ${key.label}`}
+                            aria-label={t("Delete key {name}", {
+                              name: key.label,
+                            })}
                             onClick={() =>
                               setRemove({ providerId: provider.id, key })
                             }
@@ -325,7 +332,7 @@ export function AIProviderSettings({
                   k = p?.keys.find((k: RecordData) => k.id === attempt.keyId);
                 return (
                   <tr key={attempt.id}>
-                    <td>{new Date(attempt.createdAt).toLocaleString()}</td>
+                    <td>{formatDate(attempt.createdAt, locale, "datetime")}</td>
                     <td>
                       {p?.name || t("Removed provider")} /{" "}
                       {k?.label || t("Deleted key")}
@@ -485,7 +492,7 @@ export function AIProviderSettings({
       <Modal
         open={keyProvider !== null}
         onClose={() => setKeyProvider(null)}
-        title={`Add API key · ${keyProvider?.name || ""}`}
+        title={t("Add API key · {name}", { name: keyProvider?.name || "" })}
       >
         {keyProvider && (
           <form

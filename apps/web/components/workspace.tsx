@@ -1,5 +1,14 @@
 "use client";
 import { useI18n, LocaleProvider } from "../lib/i18n";
+import {
+  apiError,
+  actionLabel,
+  fieldLabel,
+  enumLabel,
+  resourceLabel,
+  formatDate,
+} from "../lib/localization";
+import { RecordDetails, displayValue } from "./record-details";
 import { enterWorkspace } from "../lib/motion";
 import { useDebounced } from "../lib/hooks";
 import dynamic from "next/dynamic";
@@ -220,11 +229,7 @@ function Application() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw Error(
-          data.error?.message ||
-            data.message ||
-            `Request failed (${res.status})`,
-        );
+        throw Error(apiError(data, locale, res.status));
       }
       if (
         res.headers.get("content-type")?.includes("application/pdf") ||
@@ -567,14 +572,27 @@ function Application() {
       return '"' + s.replaceAll('"', '""') + '"';
     };
     const csv = [
-      cols.join(","),
-      ...items.map((r: any) => cols.map((k) => safe(r[k])).join(",")),
+      cols.map((k) => safe(fieldLabel(k, locale))).join(","),
+      ...items.map((r: any) =>
+        cols
+          .map((k) =>
+            safe(
+              r[k] !== null && typeof r[k] === "object"
+                ? JSON.stringify(r[k])
+                : displayValue(k, r[k], locale),
+            ),
+          )
+          .join(","),
+      ),
     ].join("\r\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(
       new Blob(["\ufeff" + csv], { type: "text/csv" }),
     );
-    a.download = `metalflow-${view}-page-${page}.csv`;
+    a.download =
+      locale === "zh"
+        ? `MetalFlow-${resourceLabel(view, locale)}-第${page}页.csv`
+        : `metalflow-${view}-page-${page}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -1100,15 +1118,13 @@ function Application() {
                           <div className="activity-row" key={a.id}>
                             <span className="timeline-dot" />
                             <div>
-                              <strong>
-                                {t(titleCase(a.action.replaceAll(".", " ")))}
-                              </strong>
+                              <strong>{actionLabel(a.action, locale)}</strong>
                               <small>
                                 {t("Record")} {a.entityId.slice(0, 8)}
                               </small>
                             </div>
                             <time>
-                              {new Date(a.createdAt).toLocaleString(locale)}
+                              {formatDate(a.createdAt, locale, "datetime")}
                             </time>
                           </div>
                         ))
@@ -1142,9 +1158,11 @@ function Application() {
                         <strong>{org.currency}</strong>
                       </div>
                       {analytics.data.aging?.map((a: any) => (
-                        <div className="snapshot-row" key={a.label}>
+                        <div className="snapshot-row" key={t(a.label)}>
                           <span>
-                            {t("Receivables ·")} {a.label} {t("days")}
+                            {t("Receivables · {range} days", {
+                              range: a.label === "90+" ? "90+" : t(a.label),
+                            })}
                           </span>
                           <strong>{money(a.amount)}</strong>
                         </div>
@@ -1325,7 +1343,7 @@ function Application() {
                       <small>{m.user.email}</small>
                     </div>
                     <select
-                      aria-label={`Role for ${m.user.name}`}
+                      aria-label={t("Role for {name}", { name: m.user.name })}
                       value={m.role}
                       disabled={
                         m.role === "OWNER" || m.user.id === me.data.user.id
@@ -1455,7 +1473,7 @@ function Application() {
                             <strong>{r.name}</strong>
                             <small>
                               {r.dueDate
-                                ? new Date(r.dueDate).toLocaleDateString()
+                                ? formatDate(r.dueDate, locale)
                                 : t("No due date")}
                             </small>
                             {r.budget && <span>{money(r.budget)}</span>}
@@ -1466,6 +1484,7 @@ function Application() {
                 </div>
               ) : (
                 <RecordsTable
+                  resource={view}
                   items={list.data?.items || []}
                   columns={
                     config[view]?.columns ||
@@ -1605,7 +1624,7 @@ function Application() {
             <select name="warehouseId" required>
               {lookups.warehouses?.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name}
+                  {w.name === "Main warehouse" ? t("Main warehouse") : w.name}
                 </option>
               ))}
             </select>
@@ -1663,7 +1682,7 @@ function Application() {
       <Modal
         open={modal === "import"}
         onClose={() => setModal("")}
-        title={`Import ${title.toLowerCase()}`}
+        title={t("Import {resource}", { resource: title })}
       >
         <Importer
           resource={view}
@@ -1714,7 +1733,7 @@ function Application() {
                 value={p.id}
                 checked={colorPalette === p.id}
                 onChange={() => setColorPalette(p.id)}
-                aria-label={p.en}
+                aria-label={locale === "zh" ? p.zh : p.en}
               />
               <span className="palette-swatches" aria-hidden="true">
                 {p.colors.map((c) => (
@@ -1723,7 +1742,7 @@ function Application() {
               </span>
               <span>
                 <strong>{locale === "zh" ? p.zh : p.en}</strong>
-                <small>{locale === "zh" ? p.en : p.zh}</small>
+                <small>{locale === "zh" ? t("Muted palette") : p.zh}</small>
               </span>
             </label>
           ))}
@@ -1790,7 +1809,7 @@ function Application() {
                 }}
               >
                 {r.name || r.subject}
-                <small>{group.resource}</small>
+                <small>{resourceLabel(group.resource, locale)}</small>
               </button>
             )),
           )}
@@ -1810,10 +1829,10 @@ function Application() {
             <div key={item.id} className="activity-row">
               <span className="timeline-dot" />
               <div>
-                <strong>{titleCase(item.action.replaceAll(".", " "))}</strong>
+                <strong>{actionLabel(item.action, locale)}</strong>
                 <small>{item.entityId.slice(0, 8)}</small>
               </div>
-              <time>{new Date(item.createdAt).toLocaleString(locale)}</time>
+              <time>{formatDate(item.createdAt, locale, "datetime")}</time>
             </div>
           ))
         ) : (
@@ -1829,7 +1848,9 @@ function Application() {
         title={
           view === "team"
             ? t("Invite a teammate")
-            : `New ${title.toLowerCase()}`
+            : t("New {resource}", {
+                resource: locale === "en" ? title.toLowerCase() : title,
+              })
         }
         wide={!!kinds[view]}
       >
@@ -1924,7 +1945,9 @@ function Application() {
                   <select name="warehouseId" required>
                     {lookups.warehouses?.map((w) => (
                       <option key={w.id} value={w.id}>
-                        {w.name}
+                        {w.name === "Main warehouse"
+                          ? t("Main warehouse")
+                          : w.name}
                       </option>
                     ))}
                   </select>
@@ -2028,7 +2051,7 @@ function Application() {
               <select name={key} required>
                 {lookups.warehouses?.map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name}
+                    {w.name === "Main warehouse" ? t("Main warehouse") : w.name}
                   </option>
                 ))}
               </select>
@@ -2055,12 +2078,13 @@ function Application() {
       </Modal>
       <Modal
         open={modal === "detail"}
+        translateTitle={false}
         onClose={() => setModal("")}
         title={
           selected?.number ||
           selected?.name ||
           selected?.subject ||
-          "Record details"
+          t("Record details")
         }
         wide
       >
@@ -2090,7 +2114,7 @@ function Application() {
                       <tr key={i}>
                         <td>{l.description}</td>
                         <td>
-                          {l.quantity} {l.unit}
+                          {l.quantity} {enumLabel("unit", l.unit, locale)}
                         </td>
                         <td>{l.unitPrice}</td>
                       </tr>
@@ -2301,7 +2325,9 @@ function Application() {
                     <select name="warehouseId">
                       {lookups.warehouses?.map((w) => (
                         <option key={w.id} value={w.id}>
-                          {w.name}
+                          {w.name === "Main warehouse"
+                            ? t("Main warehouse")
+                            : w.name}
                         </option>
                       ))}
                     </select>
@@ -2391,7 +2417,7 @@ function Application() {
                   {selected.extraction && (
                     <div className="notice">
                       <strong>{t("Human review required")}</strong>
-                      <pre>{JSON.stringify(selected.extraction, null, 2)}</pre>
+                      <RecordDetails data={selected.extraction} />
                       <Button
                         onClick={async () => {
                           await api(`inquiries/${selected.id}`, "PATCH", {
@@ -2445,7 +2471,7 @@ function Application() {
                   done={done}
                 />
               ) : (
-                <pre>{JSON.stringify(selected, null, 2)}</pre>
+                <RecordDetails data={selected} />
               )}
             </>
           ))}

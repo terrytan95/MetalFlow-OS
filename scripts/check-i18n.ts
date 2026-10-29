@@ -1,39 +1,46 @@
-import ts from "typescript";
 import { readFileSync, readdirSync } from "node:fs";
+import { auditSource } from "./i18n-audit.js";
+import { config, groups } from "../apps/web/components/data.js";
+import {
+  fieldNames,
+  fieldLabel,
+  enumLabel,
+} from "../apps/web/lib/localization.js";
 import { zh } from "../apps/web/lib/zh.js";
-const missing = new Set<string>();
-const untranslated: string[] = [];
-const allowed =
-  /^(MetalFlow(?: OS)?|OS|SKU|OpenAI|OpenAI-compatible API|Responses API|Chat Completions|CSV|API|Token|Tokens|English|Esc|⌘ K|INV-2026 ·|M|mm|m|KB|US)$/;
+const findings: string[] = [];
 for (const file of readdirSync("apps/web/components").filter((f) =>
   f.endsWith(".tsx"),
-)) {
-  const source = ts.createSourceFile(
-    file,
-    readFileSync("apps/web/components/" + file, "utf8"),
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
+))
+  findings.push(
+    ...auditSource(file, readFileSync("apps/web/components/" + file, "utf8")),
   );
-  function walk(n: ts.Node) {
-    if (
-      ts.isCallExpression(n) &&
-      n.expression.getText(source) === "t" &&
-      n.arguments[0] &&
-      ts.isStringLiteral(n.arguments[0])
-    ) {
-      const value = n.arguments[0].text;
-      if (/[A-Za-z]/.test(value) && !zh[value] && !allowed.test(value))
-        missing.add(value);
-    }
-    if (ts.isJsxText(n)) {
-      const value = n.text.replace(/\s+/g, " ").trim();
-      if (/[A-Za-z]{2}/.test(value) && !allowed.test(value))
-        untranslated.push(`${file}: ${value}`);
-    }
-    ts.forEachChild(n, walk);
-  }
-  walk(source);
+for (const [resource, c] of Object.entries(config)) {
+  for (const label of [c.title, c.description, ...c.fields.map((f) => f.label)])
+    if (!zh[label] && label !== "SKU")
+      findings.push(`${resource}: missing configured label ${label}`);
+  for (const column of c.columns)
+    if (!/[\u3400-\u9fff]|SKU/.test(fieldLabel(column, "zh")))
+      findings.push(`${resource}: missing column ${column}`);
+  for (const f of c.fields)
+    for (const option of f.options || [])
+      if (!/[\u3400-\u9fff]|WhatsApp|CSV/.test(enumLabel(f.key, option, "zh")))
+        findings.push(`${resource}.${f.key}: missing option ${option}`);
 }
-console.log(JSON.stringify({ missing: [...missing], untranslated }, null, 2));
-if (missing.size || untranslated.length) process.exitCode = 1;
+for (const group of groups)
+  if (!zh[group.label]) findings.push(`Missing nav group: ${group.label}`);
+for (const [field, label] of Object.entries(fieldNames))
+  if (!zh[label] && label !== "SKU")
+    findings.push(`Missing field: ${field} (${label})`);
+console.log(
+  JSON.stringify(
+    {
+      findings,
+      files: readdirSync("apps/web/components").filter((f) =>
+        f.endsWith(".tsx"),
+      ).length,
+    },
+    null,
+    2,
+  ),
+);
+if (findings.length) process.exitCode = 1;
