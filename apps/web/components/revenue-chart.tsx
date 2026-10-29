@@ -8,13 +8,14 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { formatDate, formatNumber } from "../lib/localization";
 import { useI18n } from "../lib/i18n";
 export default function RevenueChart({
   data,
 }: {
   data: { date: string; revenue: number }[];
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   return (
     <div className="chart">
       <ResponsiveContainer width="100%" height="100%">
@@ -22,12 +23,21 @@ export default function RevenueChart({
           <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="date"
-            tickFormatter={(v) => v.slice(5)}
+            tickFormatter={(v) => formatDate(v, locale).replace(/^\d{4}\//, "")}
             tick={{ fontSize: 11 }}
             axisLine={false}
           />
           <YAxis tick={{ fontSize: 11 }} axisLine={false} />
-          <Tooltip />
+          <Tooltip
+            labelFormatter={(v) => formatDate(String(v), locale)}
+            formatter={(v) => [
+              formatNumber(Number(v), locale, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+              t("Revenue"),
+            ]}
+          />
           <Area
             isAnimationActive={false}
             name={t("Revenue")}

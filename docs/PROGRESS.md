@@ -65,3 +65,11 @@ Continue remaining master-spec features from IMPLEMENTATION_ROADMAP.md. Configur
 - All six browser E2E scenarios passed (57.4s); extended finance/stock/files/quota and AI pool integration passed. Static translation coverage has no missing literal UI keys. 24 unit tests, strict typecheck, lint, dependency audit and production build passed. PDF label localization verified. PR #2 merged (bba33cc); production migrations 007/008 and health checks passed. Remaining scope is explicit in PERFORMANCE_AUDIT.md and IMPLEMENTATION_ROADMAP.md.
 
 Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs returned HTTP 200. Benchmark data stayed in the isolated test database. No new external service credentials or production demo data were introduced.
+
+## Comprehensive Chinese localization repair (2026-10-29)
+- Audited every navigation module with populated synthetic data, all configured creation forms, AI extraction/results, audit history, notifications, CSV exports, validation and mobile layout.
+- Repaired contextual material/unit labels, boolean values, movement/action codes, dynamic modal/accessibility labels, locale-specific dates/numbers, native file-input text and structured record presentations. User-authored content and stable identifiers remain intact.
+- Added structured validation metadata with no submitted values, localized native constraint feedback, and request-language reset/verification email templates (SMTP delivery not exercised).
+- Replaced the prior literal-only i18n check with attribute/template/fallback/formatting/schema checks and explicit regression fixtures. The standard lint command now runs this gate.
+- 33 unit tests and all 7 Playwright scenarios passed. The final populated Chinese audit plus completion workflow rerun passed (29.9s), including all 28 navigation pages, calendar month labels, native/backend validation, CSV/BOM exports, name preservation and mobile layout. API business regression, production build and dependency audit passed. Deployment pending.
+- Test environment: task checkout fix/complete-chinese-localization, pnpm; @playwright/test/playwright/playwright-core declared ^1.64.1, locked/installed 1.64.1; bundled headless Chromium 156.0.8078.4, 1440×1000 and 390×844 viewports; isolated VPS Compose via localhost:3411. No production business data was seeded.

@@ -7,14 +7,23 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import { Badge, Empty, Button } from "./ui";
-import { titleCase, type RecordData } from "./data";
+import {
+  fieldLabel,
+  enumLabel,
+  actionLabel,
+  formatDate,
+  formatNumber,
+} from "../lib/localization";
+import { type RecordData } from "./data";
 export function RecordsTable({
   items,
   columns,
   onSelect,
   lookups,
+  resource,
 }: {
   items: RecordData[];
+  resource?: string;
   columns: string[];
   onSelect?: (record: RecordData) => void;
   lookups: Record<string, RecordData[]>;
@@ -34,18 +43,29 @@ export function RecordsTable({
     () =>
       columns.map((key) => ({
         accessorKey: key,
-        header: t(key) === key ? titleCase(key).replace("Id", "") : t(key),
+        header: fieldLabel(key, locale),
         cell: ({ getValue }: any) => {
           const v = getValue();
+          if (
+            resource === "warehouses" &&
+            key === "name" &&
+            v === "Main warehouse"
+          )
+            return t("Main warehouse");
           if (v == null) return <span className="muted">—</span>;
+          if (typeof v === "boolean") return enumLabel(key, v, locale);
+          if (key === "action") return actionLabel(String(v), locale);
           if (key === "status") return <Badge value={String(v)} />;
-          if (/At$|Date$/.test(key))
-            return new Date(v).toLocaleDateString(locale);
+          if (/At$|Date$/.test(key)) return formatDate(v, locale);
           if (key.endsWith("Id"))
             return lookupById.get(v) || String(v).slice(0, 8);
-          if (typeof v === "object") return v.name || JSON.stringify(v);
+          if (typeof v === "object")
+            return key === "warehouse" && v.name === "Main warehouse"
+              ? t("Main warehouse")
+              : v.name || JSON.stringify(v);
           return [
             "type",
+            "material",
             "unit",
             "profile",
             "source",
@@ -54,11 +74,13 @@ export function RecordsTable({
             "category",
             "role",
           ].includes(key)
-            ? t(String(v))
-            : String(v);
+            ? enumLabel(key, v, locale)
+            : typeof v === "number"
+              ? formatNumber(v, locale)
+              : String(v);
         },
       })),
-    [columns, lookupById, t, locale],
+    [columns, lookupById, t, locale, resource],
   );
   const table = useReactTable({
     data: items,

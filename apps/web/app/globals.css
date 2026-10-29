@@ -2000,3 +2000,125 @@ td:first-child {
 .record-select input {
   min-width: 0;
 }
+.record-details {
+  margin: 12px 0;
+  min-width: 0;
+}
+.record-detail {
+  display: grid;
+  grid-template-columns: minmax(110px, 28%) minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.record-detail dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.record-detail dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.record-detail ul {
+  padding-left: 18px;
+  margin: 0;
+}
+.record-detail .record-details {
+  margin: 0;
+}
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(100px, 1fr));
+  overflow: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.calendar-weekdays span {
+  padding: 8px;
+}
+html[lang^="zh"] .eyebrow,
+html[lang^="zh"] .sidebar summary,
+html[lang^="zh"] th {
+  letter-spacing: 0.05em;
+}
+html[lang^="zh"] .btn {
+  white-space: normal;
+  word-break: keep-all;
+}
+html[lang^="zh"] .page-heading p {
+  line-height: 1.8;
+}
+.dialog label,
+.notice,
+.provider-footer,
+.page-heading p {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .record-detail {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .calendar-weekdays {
+    display: none;
+  }
+  .dialog .actions {
+    flex-wrap: wrap;
+  }
+  html[lang^="zh"] .page-heading > .actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .provider-footer {
+    max-width: 100%;
+  }
+}
+.file-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  margin-top: 7px;
+}
+.file-control-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+}
+.file-control > span {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.file-control:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.month-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.schedule .month-controls input {
+  width: 86px;
+}
+.schedule .month-controls select {
+  width: auto;
+  min-width: 85px;
+}
+@media (max-width: 760px) {
+  .schedule .panel-title .actions {
+    flex-wrap: wrap;
+  }
+  .month-controls {
+    max-width: 100%;
+  }
+}

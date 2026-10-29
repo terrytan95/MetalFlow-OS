@@ -81,7 +81,9 @@ export function RecordSelect({
         {merged.map((row: RecordData) => (
           <option key={row.id} value={row.id}>
             {row.sku ? `${row.sku} · ` : ""}
-            {row.name || row.subject}
+            {resource === "warehouses" && row.name === "Main warehouse"
+              ? t("Main warehouse")
+              : row.name || row.subject}
           </option>
         ))}
       </select>

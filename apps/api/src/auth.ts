@@ -1,16 +1,26 @@
+import { authEmailCopy } from "../../../packages/shared/src/auth-copy.js";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import nodemailer from "nodemailer";
 import { db } from "../../../packages/database/index.js";
 const base = process.env.PUBLIC_URL || "http://localhost:3400/metalflow";
-async function mail(to: string, subject: string, url: string) {
+async function mail(
+  to: string,
+  kind: "reset" | "verify",
+  url: string,
+  request?: Request,
+) {
+  const copy = authEmailCopy(
+    kind,
+    url,
+    request?.headers.get("accept-language"),
+  );
   if (!process.env.SMTP_URL)
     throw new Error("Email delivery is not configured");
   await nodemailer.createTransport(process.env.SMTP_URL).sendMail({
     from: process.env.MAIL_FROM,
     to,
-    subject,
-    text: `${subject}\n${url}\nIf you did not request this, ignore this email.`,
+    ...copy,
   });
 }
 export const auth = betterAuth({
@@ -23,13 +33,13 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 12,
     requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION === "true",
-    sendResetPassword: async ({ user, url }) =>
-      mail(user.email, "Reset your MetalFlow password", url),
+    sendResetPassword: async ({ user, url }, request) =>
+      mail(user.email, "reset", url, request),
   },
   emailVerification: {
     sendOnSignUp: Boolean(process.env.SMTP_URL),
-    sendVerificationEmail: async ({ user, url }) =>
-      mail(user.email, "Verify your MetalFlow email", url),
+    sendVerificationEmail: async ({ user, url }, request) =>
+      mail(user.email, "verify", url, request),
   },
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 12 },
   advanced: {

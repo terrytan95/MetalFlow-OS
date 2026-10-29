@@ -24,10 +24,21 @@ class Errors implements ExceptionFilter {
     const ctx = host.switchToHttp(),
       res = ctx.getResponse(),
       req = ctx.getRequest();
+    let issues: unknown;
     let status = 500,
       message = "Unexpected server error";
     if (error instanceof ZodError) {
       status = 400;
+      issues = error.issues.map((i) => ({
+        path: i.path,
+        code: i.code,
+        message: i.message,
+        ...("origin" in i ? { origin: i.origin } : {}),
+        ...("expected" in i ? { expected: i.expected } : {}),
+        ...("minimum" in i ? { minimum: i.minimum } : {}),
+        ...("maximum" in i ? { maximum: i.maximum } : {}),
+        ...("format" in i ? { format: i.format } : {}),
+      }));
       message = error.issues
         .map((i) => `${i.path.join(".")}: ${i.message}`)
         .join("; ");
@@ -58,7 +69,14 @@ class Errors implements ExceptionFilter {
     }
     res
       .status(status)
-      .json({ error: { code: status, message, requestId: req.requestId } });
+      .json({
+        error: {
+          code: status,
+          message,
+          requestId: req.requestId,
+          ...(issues ? { issues } : {}),
+        },
+      });
   }
 }
 @Module({ controllers: [AISettingsController, AppController] })

@@ -20,12 +20,14 @@ export function Modal({
   title,
   children,
   wide = false,
+  translateTitle = true,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   wide?: boolean;
+  translateTitle?: boolean;
 }) {
   const { t } = useI18n();
 
@@ -38,7 +40,7 @@ export function Modal({
           aria-describedby={undefined}
         >
           <div className="dialog-header">
-            <Dialog.Title>{t(title)}</Dialog.Title>
+            <Dialog.Title>{translateTitle ? t(title) : title}</Dialog.Title>
             <Dialog.Close asChild>
               <Button aria-label={t("Close")}>
                 <X size={17} />

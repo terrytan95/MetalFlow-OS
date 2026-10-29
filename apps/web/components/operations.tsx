@@ -1,4 +1,12 @@
 "use client";
+import { FileInput } from "./file-input";
+import {
+  enumLabel,
+  formatDate,
+  formatNumber,
+  fieldLabel,
+} from "../lib/localization";
+import { RecordDetails } from "./record-details";
 import { useI18n } from "../lib/i18n";
 import { useState, useRef, useEffect } from "react";
 import { Scissors, Sparkles, Plus } from "lucide-react";
@@ -6,7 +14,7 @@ import { Button, Badge, Empty } from "./ui";
 import type { API } from "./forms";
 import type { RecordData } from "./data";
 export function Cutting({ api }: { api: API }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [saving, setSaving] = useState(false);
   const saveKey = useRef(crypto.randomUUID());
@@ -142,7 +150,9 @@ export function Cutting({ api }: { api: API }) {
                 try {
                   await api("fabrication", "POST", {
                     idempotencyKey: saveKey.current,
-                    name: `Cut plan ${new Date().toLocaleDateString()}`,
+                    name: t("Cut plan {date}", {
+                      date: formatDate(new Date(), locale),
+                    }),
                     cutPlan: result,
                   });
                   setResult({ ...result, saved: true });
@@ -184,7 +194,7 @@ export function AIWorkspace({
   jobs: RecordData[];
   refresh: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -264,9 +274,10 @@ export function AIWorkspace({
           <label>
             {" "}
             {t("Reference image or document")}{" "}
-            <input
+            <FileInput
+              aria-label={t("Reference image or document")}
               name="file"
-              type="file"
+
               accept="image/png,image/jpeg,image/webp,application/pdf"
               disabled={!enabled}
             />
@@ -291,9 +302,9 @@ export function AIWorkspace({
                 <Badge value={j.status} />
               </div>
               <p className="muted">
-                {new Date(j.createdAt).toLocaleString()} · {j.model}
+                {formatDate(j.createdAt, locale, "datetime")} · {j.model}
               </p>
-              {j.result && <pre>{JSON.stringify(j.result, null, 2)}</pre>}
+              {j.result && <RecordDetails data={j.result} />}
               {j.result?.fileId && (
                 <SecureImage api={api} id={j.result.fileId} />
               )}
@@ -357,7 +368,7 @@ export function Takeoff({
   items: RecordData[];
   refresh: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [name, setName] = useState(""),
     [fileId, setFile] = useState(""),
@@ -393,8 +404,8 @@ export function Takeoff({
         <label>
           {" "}
           {t("Drawing")}{" "}
-          <input
-            type="file"
+          <FileInput
+            aria-label={t("Drawing")}
             accept="application/pdf,image/png,image/jpeg,image/webp"
             onChange={async (e) => {
               try {
@@ -520,7 +531,9 @@ export function Takeoff({
                     setMeasures([
                       ...measurements,
                       {
-                        label: `Measurement ${measurements.length + 1}`,
+                        label: t("Measurement {number}", {
+                          number: measurements.length + 1,
+                        }),
                         quantity: (length / 1000).toFixed(4),
                         unit: "m",
                         source: "SCALE",
@@ -561,13 +574,14 @@ export function Takeoff({
               <tr key={i}>
                 <td>{m.label}</td>
                 <td>
-                  {m.quantity} {m.unit}
+                  {formatNumber(m.quantity, locale)}{" "}
+                  {enumLabel("unit", m.unit, locale)}
                 </td>
                 <td>{t(m.source)}</td>
                 <td>
                   <input
                     type="checkbox"
-                    aria-label={`Verify ${m.label}`}
+                    aria-label={t("Verify {name}", { name: m.label })}
                     checked={m.verified}
                     onChange={(e) =>
                       setMeasures(
@@ -629,9 +643,17 @@ export function Takeoff({
               <Button
                 onClick={() => {
                   const rows = [
-                    "Item,Quantity,Unit,Source,Verified",
+                    ["label", "quantity", "unit", "source", "verified"]
+                      .map((k) => fieldLabel(k, locale))
+                      .join(","),
                     ...takeoff.measurements.map((m: any) =>
-                      [m.label, m.quantity, m.unit, m.source, m.verified]
+                      [
+                        m.label,
+                        m.quantity,
+                        enumLabel("unit", m.unit, locale),
+                        enumLabel("source", m.source, locale),
+                        enumLabel("verified", m.verified, locale),
+                      ]
                         .map(
                           (v) =>
                             '"' +
@@ -646,9 +668,12 @@ export function Takeoff({
                   ];
                   const a = document.createElement("a");
                   a.href = URL.createObjectURL(
-                    new Blob([rows.join("\n")], { type: "text/csv" }),
+                    new Blob(["\ufeff" + rows.join("\r\n")], {
+                      type: "text/csv;charset=utf-8",
+                    }),
                   );
-                  a.download = "takeoff-bom.csv";
+                  a.download =
+                    locale === "zh" ? "算量物料清单.csv" : "takeoff-bom.csv";
                   a.click();
                   URL.revokeObjectURL(a.href);
                 }}

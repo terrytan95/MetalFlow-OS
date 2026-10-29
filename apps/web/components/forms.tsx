@@ -1,4 +1,5 @@
 "use client";
+import { enumLabel, formatNumber, fieldLabel } from "../lib/localization";
 import { useI18n } from "../lib/i18n";
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -27,7 +28,7 @@ export function ResourceForm({
   api: API;
   done: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const fields = config[resource].fields.filter(
     (f) => showCost || f.key !== "cost",
@@ -93,7 +94,7 @@ export function ResourceForm({
               f.type === "textarea" || f.type === "json" ? "span-2" : ""
             }
           >
-            {t(f.label)}
+            {f.key === "profile" ? fieldLabel("profile", locale) : t(f.label)}
             {f.required && <span className="required"> *</span>}
             {f.resource ? (
               <Controller
@@ -103,7 +104,11 @@ export function ResourceForm({
                 render={({ field }) => (
                   <RecordSelect
                     resource={f.resource!}
-                    label={t(f.label)}
+                    label={
+                      f.key === "profile"
+                        ? fieldLabel("profile", locale)
+                        : t(f.label)
+                    }
                     api={api}
                     value={field.value}
                     onChange={field.onChange}
@@ -117,7 +122,7 @@ export function ResourceForm({
                 <option value="">{t("Select…")}</option>
                 {f.options.map((o) => (
                   <option key={o} value={o}>
-                    {t(o)}
+                    {enumLabel(f.key, o, locale)}
                   </option>
                 ))}
               </select>
@@ -177,7 +182,7 @@ export function DocumentForm({
   source?: RecordData;
   record?: RecordData;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const kind = kinds[view],
     purchase = kind === "PURCHASE";
@@ -343,7 +348,7 @@ export function DocumentForm({
                     "custom",
                   ].map((v) => (
                     <option key={v} value={v}>
-                      {t(v)}
+                      {enumLabel("unit", v, locale)}
                     </option>
                   ))}
                 </select>
@@ -433,10 +438,18 @@ export function DocumentForm({
       </div>
       <div className="totals">
         <span>
-          {t("Subtotal")} {subtotal.toFixed(2)}
+          {t("Subtotal")}{" "}
+          {formatNumber(subtotal.toFixed(2), locale, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </span>
         <strong>
-          {t("Total")} {total.toFixed(2)}
+          {t("Total")}{" "}
+          {formatNumber(total.toFixed(2), locale, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </strong>
       </div>
       {error && (

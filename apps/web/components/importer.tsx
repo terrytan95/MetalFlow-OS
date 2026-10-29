@@ -1,4 +1,6 @@
 "use client";
+import { FileInput } from "./file-input";
+import { fieldLabel, enumLabel } from "../lib/localization";
 import { useI18n } from "../lib/i18n";
 import { useState } from "react";
 import { parseCSV } from "../../../packages/shared/src/csv";
@@ -16,7 +18,7 @@ export function Importer({
   api: API;
   done: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [rows, setRows] = useState<Record<string, string>[]>([]),
     [error, setError] = useState(""),
@@ -40,13 +42,16 @@ export function Importer({
       </p>
       <details>
         <summary>{t("CSV format")}</summary>
-        <pre>{examples[resource]}</pre>
+        <p className="muted">
+          {t("Technical field names stay unchanged in the import template.")}
+        </p>
+        <pre data-format="csv">{examples[resource]}</pre>
       </details>
       <label>
         {" "}
         {t("CSV file")}{" "}
-        <input
-          type="file"
+        <FileInput
+          aria-label={t("CSV file")}
           accept=".csv,text/csv"
           onChange={async (e) => {
             try {
@@ -72,7 +77,7 @@ export function Importer({
           >
             {warehouses.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.name}
+                {w.name === "Main warehouse" ? t("Main warehouse") : w.name}
               </option>
             ))}
           </select>
@@ -83,7 +88,30 @@ export function Importer({
           <h3 className="mt">
             {t("Review")} {rows.length} {t("rows")}
           </h3>
-          <pre>{JSON.stringify(rows.slice(0, 5), null, 2)}</pre>
+          <div className="table-scroll">
+            <table aria-label={t("CSV preview")}>
+              <thead>
+                <tr>
+                  {Object.keys(rows[0]).map((k) => (
+                    <th key={k}>{fieldLabel(k, locale)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 5).map((r, i) => (
+                  <tr key={i}>
+                    {Object.entries(r).map(([k, v]) => (
+                      <td key={k}>
+                        {["type", "unit", "profile", "material"].includes(k)
+                          ? enumLabel(k, v, locale)
+                          : v}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="muted">{t("Preview shows the first 5 rows.")}</p>
         </>
       )}

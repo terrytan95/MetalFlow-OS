@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { formatDate, formatNumber } from "../lib/localization";
 import { useI18n } from "../lib/i18n";
 import { Button, Modal, Empty } from "./ui";
 import type { API } from "./forms";
@@ -44,8 +45,13 @@ export function FileSettings({
               {query.data.items.map((f: RecordData) => (
                 <tr key={f.id}>
                   <td>{f.name}</td>
-                  <td>{(f.size / 1024).toFixed(1)} KB</td>
-                  <td>{new Date(f.createdAt).toLocaleDateString(locale)}</td>
+                  <td>
+                    {formatNumber(f.size / 1024, locale, {
+                      maximumFractionDigits: 1,
+                    })}{" "}
+                    KB
+                  </td>
+                  <td>{formatDate(f.createdAt, locale)}</td>
                   <td>
                     <Button
                       onClick={() => {
