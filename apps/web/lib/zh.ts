@@ -726,6 +726,9 @@ export const zh: Record<string, string> = {
   Dark: "深色",
   Done: "完成",
   "Appearance & Morandi palettes": "外观与莫兰迪配色",
+  "Page text size": "页面文本大小",
+  "Adjust the font and reading size for your workspace in this browser.":
+    "调节工作区界面的文字与信息显示字号，偏好将自动保存在当前浏览器。",
   "Muted colors, clear information. Choose a palette and light or dark mode independently.":
     "低饱和色彩，清晰的数据层次。配色与明暗模式可独立选择。",
   "Applies across every module and saves automatically in this browser.":

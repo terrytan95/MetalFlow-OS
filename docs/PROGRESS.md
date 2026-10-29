@@ -105,3 +105,7 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Aligned dropdown select arrows across all native selects with custom SVG chevron and balanced horizontal/vertical margins.
 - Desaturated default Foundry theme to Morandi pine-teal (#365c52 / dark #8faea5) and added 6 new Morandi palettes (olive, clay, stone, pine, sand, mauve) with verified WCAG AA (>= 4.5:1) contrast across light and dark modes.
 - Bound global scrollbar colors (standard `scrollbar-color` and `::-webkit-scrollbar` thumb/hover) to active theme tokens (`--scrollbar-thumb` and `--scrollbar-thumb-hover`), replacing browser default grey scrollbars across the sidebar, tables, dialogs and kanban views.
+
+## Page text size preference (2026-10-29)
+- Added page text size setting with four tiers (small 90%, standard 100%, large 110%, extra large 120%) available in both Organization Settings and Appearance modal.
+- Dynamically scales typography across body, headings, tables, labels and sidebar via `--text-scale` while preserving layout stability, mobile viewport fit, and local persistence via `metalflow.textSize`.

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 :root {
+  --text-scale: 1;
   --bg: #f4f7f5;
   --surface: #fff;
   --text: #1d302b;
@@ -30,12 +31,25 @@
   --scrollbar-thumb: color-mix(in srgb, var(--border) 75%, var(--accent));
   --scrollbar-thumb-hover: var(--accent);
 }
+html[data-text-size="small"] {
+  --text-scale: 0.9;
+}
+html[data-text-size="normal"],
+html:not([data-text-size]) {
+  --text-scale: 1;
+}
+html[data-text-size="large"] {
+  --text-scale: 1.1;
+}
+html[data-text-size="xlarge"] {
+  --text-scale: 1.2;
+}
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
-  font: 13px/1.5 var(--font);
+  font: calc(13px * var(--text-scale, 1)) / 1.5 var(--font);
   color: var(--text);
   background: var(--bg);
 }
@@ -85,22 +99,22 @@ p {
   margin: 0;
 }
 h1 {
-  font-size: 28px;
+  font-size: calc(28px * var(--text-scale, 1));
   line-height: 1.25;
   font-weight: 650;
   letter-spacing: -0.9px;
 }
 h2 {
-  font-size: 15px;
+  font-size: calc(15px * var(--text-scale, 1));
   font-weight: 650;
 }
 h3 {
-  font-size: 14px;
+  font-size: calc(14px * var(--text-scale, 1));
   font-weight: 600;
   margin-bottom: 12px;
 }
 small {
-  font-size: 11px;
+  font-size: calc(11px * var(--text-scale, 1));
 }
 input,
 select,
@@ -138,7 +152,7 @@ input[type="checkbox"] {
 }
 label {
   display: block;
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale, 1));
   font-weight: 550;
   color: var(--text);
   margin-top: 16px;
@@ -310,7 +324,7 @@ pre {
   display: flex;
   justify-content: space-between;
   padding: 7px 12px;
-  font-size: 9px;
+  font-size: calc(9px * var(--text-scale, 1));
   letter-spacing: 1.3px;
   text-transform: uppercase;
   color: var(--muted);
@@ -331,7 +345,7 @@ pre {
   background: transparent;
   color: var(--muted);
   text-align: left;
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale, 1));
   margin-top: 2px;
 }
 .sidebar nav button:hover {
@@ -712,7 +726,7 @@ table {
   white-space: nowrap;
 }
 th {
-  font-size: 10px;
+  font-size: calc(10px * var(--text-scale, 1));
   letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--muted);
@@ -725,7 +739,7 @@ th {
   border-bottom: 1px solid var(--border);
 }
 td {
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale, 1));
   font-variant-numeric: tabular-nums;
 }
 tbody tr:hover {
@@ -746,7 +760,7 @@ td:first-child {
   justify-content: space-between;
   padding: 14px 20px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--text-scale, 1));
 }
 .overlay {
   position: fixed;
@@ -909,6 +923,14 @@ td:first-child {
 }
 .settings-panel {
   max-width: 850px;
+}
+.settings-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.appearance-section {
+  margin-top: 18px;
 }
 .module-checkboxes {
   display: flex;
