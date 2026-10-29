@@ -82,6 +82,8 @@ export async function providerRequest(
     const system =
       input.kind === "INQUIRY"
         ? `${instructions} Return only JSON matching this schema: ${JSON.stringify(z.toJSONSchema(extraction))}`
+        : input.kind === "OCR"
+          ? "You are an accurate OCR document data extractor for MetalFlow OS. Extract all business data into clean JSON. Return ONLY valid JSON without markdown wrapping."
         : instructions;
     const { data, response } = await client.chat.completions
       .create({
@@ -90,8 +92,8 @@ export async function providerRequest(
           { role: "system", content: system },
           { role: "user", content },
         ],
-        max_tokens: 1800,
-        ...(input.kind === "INQUIRY"
+        max_tokens: 2500,
+        ...(["INQUIRY", "OCR"].includes(input.kind)
           ? { response_format: { type: "json_object" as const } }
           : {}),
       })
@@ -100,10 +102,14 @@ export async function providerRequest(
     if (!text) throw new CompletedOutputError(data.usage, response.headers);
     let value: unknown;
     try {
-      value =
-        input.kind === "INQUIRY"
-          ? extraction.parse(JSON.parse(text))
-          : { text };
+      if (input.kind === "INQUIRY") {
+        value = extraction.parse(JSON.parse(text));
+      } else if (input.kind === "OCR") {
+        const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+        value = JSON.parse(cleaned);
+      } else {
+        value = { text };
+      }
     } catch {
       throw new CompletedOutputError(data.usage, response.headers);
     }
@@ -148,8 +154,14 @@ export async function providerRequest(
   let value: unknown;
   try {
     if (!text) throw Error();
-    value =
-      input.kind === "INQUIRY" ? extraction.parse(JSON.parse(text)) : { text };
+    if (input.kind === "INQUIRY") {
+      value = extraction.parse(JSON.parse(text));
+    } else if (input.kind === "OCR") {
+      const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+      value = JSON.parse(cleaned);
+    } else {
+      value = { text };
+    }
   } catch {
     throw new CompletedOutputError(data.usage, response.headers);
   }

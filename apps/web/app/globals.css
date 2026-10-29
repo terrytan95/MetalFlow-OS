@@ -2764,3 +2764,45 @@ html[lang^="zh"] .page-heading p {
 .spin {
   animation: spin 1s linear infinite;
 }
+/* OCR Smart Input Bar */
+.ocr-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+}
+.ocr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: calc(12.5px * var(--text-scale, 1));
+  font-weight: 550;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 140ms ease-out;
+}
+.ocr-btn:hover {
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.ocr-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: calc(12.5px * var(--text-scale, 1));
+  line-height: 1.4;
+  flex: 1;
+  min-width: 200px;
+  font-weight: 500;
+}

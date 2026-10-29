@@ -4,7 +4,11 @@ import { analyticsReport } from "./analytics.js";
 import {
   capabilities,
   resolveProvider,
+  runWithKeyPool,
+  AIExecutionError,
+  type ProviderConfig,
 } from "../../../packages/ai/src/pool.js";
+import { providerRequest } from "../../../packages/ai/src/request.js";
 import { importRecords } from "./imports.js";
 import {
   Body,
@@ -33,7 +37,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { Decimal } from "decimal.js";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import PDFDocument from "pdfkit";
@@ -67,6 +71,69 @@ import {
 const queue = new Queue("metalflow-ai", {
   connection: { url: process.env.REDIS_URL || "redis://127.0.0.1:6379" },
 });
+function getOcrPrompt(target: string): string {
+  const t = (target || "general").toLowerCase();
+  if (["orders", "quotations", "purchases", "invoices", "documents"].includes(t)) {
+    return `Extract all commercial document / order / invoice / quotation / purchase details from this image.
+Return JSON with the following structure:
+{
+  "customerName": string,
+  "supplierName": string,
+  "date": "YYYY-MM-DD",
+  "dueDate": "YYYY-MM-DD",
+  "lines": [
+    {
+      "description": string,
+      "quantity": number,
+      "unit": string,
+      "unitPrice": number,
+      "amount": number
+    }
+  ],
+  "discount": number,
+  "tax": number,
+  "notes": string
+}`;
+  }
+  if (["customers", "suppliers"].includes(t)) {
+    return `Extract customer, client, or supplier contact details from this business card, letterhead, or invoice image.
+Return JSON with:
+{
+  "name": string,
+  "contact": string,
+  "email": string,
+  "phone": string,
+  "address": string,
+  "taxId": string,
+  "notes": string
+}`;
+  }
+  if (t === "fabrication") {
+    return `Extract fabrication work order or drawing part specifications from this image.
+Return JSON with:
+{
+  "name": string,
+  "material": string,
+  "quantity": number,
+  "thickness": number,
+  "width": number,
+  "length": number,
+  "instructions": string
+}`;
+  }
+  if (t === "inventory") {
+    return `Extract warehouse stock count, receiving, or inventory adjustment details from this receipt or count sheet.
+Return JSON with:
+{
+  "name": string,
+  "quantity": number,
+  "unit": string,
+  "reason": string,
+  "notes": string
+}`;
+  }
+  return `Extract all readable business data and structured key-value pairs from this document into clean JSON.`;
+}
 function page(q: Record<string, string>) {
   const n = Math.max(1, Math.min(100000, Math.floor(Number(q.page)) || 1)),
     take = Math.min(100, Math.max(1, Math.floor(Number(q.limit)) || 25));
@@ -926,6 +993,99 @@ export class AppController {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     };
+  }
+  @Post("ai/extract")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+    }),
+  )
+  async extract(
+    @Req() req: Request,
+    @UploadedFile()
+    file?: { buffer: Buffer; originalname: string; size: number },
+    @Body("target") target?: string,
+    @Body("fileId") fileId?: string,
+  ) {
+    const c = await context(req, "sales:write");
+    let fileBuffer: Buffer, fileName: string, fileMime: string;
+    if (file) {
+      const type = await fileTypeFromBuffer(file.buffer);
+      if (
+        !type ||
+        !["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(
+          type.mime,
+        )
+      )
+        throw new BadRequestException(
+          "Only validated PNG, JPEG, WebP and PDF files are supported",
+        );
+      fileBuffer = file.buffer;
+      fileName = file.originalname;
+      fileMime = type.mime;
+    } else if (fileId) {
+      const asset = (await owned(db, "fileAsset", c, fileId)) as {
+        path: string;
+        name: string;
+        mime: string;
+      };
+      fileBuffer = await readFile(
+        path.join(process.env.STORAGE_ROOT || "/tmp/metalflow-storage", asset.path),
+      );
+      fileName = asset.name;
+      fileMime = asset.mime;
+    } else {
+      throw new BadRequestException("File required");
+    }
+    let selected: { providerId: string | null; model: string };
+    try {
+      selected = await resolveProvider(c.organizationId, "DOCUMENT");
+    } catch {
+      try {
+        selected = await resolveProvider(c.organizationId, "ASSISTANT");
+      } catch {
+        throw new BadRequestException(
+          "Configure an enabled AI provider, model and key in Settings.",
+        );
+      }
+    }
+    const prompt = getOcrPrompt(target || "general");
+    const execute = (config: ProviderConfig, apiKey: string) =>
+      providerRequest(config, apiKey, {
+        kind: "OCR",
+        model: selected.model,
+        text: prompt,
+        file: {
+          bytes: fileBuffer,
+          name: fileName,
+          mime: fileMime,
+        },
+      });
+    const response = selected.providerId
+      ? await runWithKeyPool(
+          c.organizationId,
+          selected.providerId,
+          randomUUID(),
+          selected.model,
+          execute,
+        )
+      : await (async () => {
+          if (!process.env.OPENAI_API_KEY)
+            throw new AIExecutionError("NO_CONFIGURED_PROVIDER");
+          return execute(
+            {
+              id: "environment",
+              organizationId: c.organizationId,
+              type: "OPENAI",
+              protocol: "RESPONSES",
+              baseUrl: "https://api.openai.com/v1",
+              textModel: process.env.OPENAI_TEXT_MODEL || null,
+              imageModel: process.env.OPENAI_IMAGE_MODEL || null,
+            },
+            process.env.OPENAI_API_KEY,
+          );
+        })();
+    return { success: true, data: response.value };
   }
   @Post("ai/jobs") async job(@Req() req: Request, @Body() raw: unknown) {
     const c = await context(req, "sales:write");
