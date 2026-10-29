@@ -3,7 +3,7 @@ export const palettes = [
     id: "foundry",
     en: "Foundry teal",
     zh: "经典青绿",
-    colors: ["#176451", "#eaf3ee", "#f6f8f7"],
+    colors: ["#365c52", "#e8f0ec", "#f4f7f5"],
   },
   {
     id: "sage",
@@ -34,6 +34,42 @@ export const palettes = [
     en: "Lavender gray",
     zh: "薰衣草灰",
     colors: ["#6d627f", "#e8e3ee", "#f7f5f9"],
+  },
+  {
+    id: "olive",
+    en: "Muted olive",
+    zh: "橄榄青",
+    colors: ["#59644f", "#e9ece3", "#f5f6f1"],
+  },
+  {
+    id: "clay",
+    en: "Terracotta clay",
+    zh: "陶土赭",
+    colors: ["#7d5b51", "#efe5e1", "#f8f5f3"],
+  },
+  {
+    id: "stone",
+    en: "Warm stone",
+    zh: "暖石灰",
+    colors: ["#605c57", "#eceae6", "#f6f5f4"],
+  },
+  {
+    id: "pine",
+    en: "Nordic pine",
+    zh: "墨松绿",
+    colors: ["#445c58", "#e2ebe8", "#f3f6f5"],
+  },
+  {
+    id: "sand",
+    en: "Dune sand",
+    zh: "灰沙褐",
+    colors: ["#6e604b", "#eee7dc", "#f8f6f2"],
+  },
+  {
+    id: "mauve",
+    en: "Dusty mauve",
+    zh: "烟紫灰",
+    colors: ["#6c5966", "#eee3eb", "#f7f4f6"],
   },
   {
     id: "mono",

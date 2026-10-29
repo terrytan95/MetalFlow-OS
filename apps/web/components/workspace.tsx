@@ -1525,7 +1525,7 @@ function Application() {
                             : t("No records are available in this workspace.")
                         }
                       />
-                      <div className="actions">
+                      <div className="table-empty-actions actions">
                         {searchValue ? (
                           <Button
                             onClick={() => {
