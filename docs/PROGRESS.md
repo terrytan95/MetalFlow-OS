@@ -134,3 +134,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Added unified OCR photo/document recognition endpoint `POST /metalflow/api/v1/ai/extract` supporting vision extraction across orders, quotations, purchases, customers, inventory, and fabrication work orders via the organization's bound AI provider.
 - Integrated camera/upload OCR action button into both ResourceForm and DocumentForm; parsed fields and line items pre-fill the form automatically.
 - Enforced pre-save user confirmation: displays prominent review notice, allowing users to verify, edit, or adjust all recognized values before final save.
+
+## Quick Create dropdown menu (2026-10-29)
+- Upgraded top header "+ 快速创建" button into an accessible dropdown menu providing instant one-click creation across CRM, supply chain, operations, and finance.
+- Categorized options into Sales (Customer, Inquiry, Quotation, Order), Supply Chain (Product, Inventory Adjust, Stock Transfer, Purchase Order, Supplier), Operations (Fabrication, Project, Task), and Finance (Invoice, Credit Note) with permission filtering.
+- Integrated click-outside and Escape key closing with smooth chevron rotation animation.
