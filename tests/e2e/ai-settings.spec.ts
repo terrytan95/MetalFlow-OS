@@ -1,3 +1,4 @@
+import { submitRegistration } from "./helpers.js";
 import { test, expect } from "@playwright/test";
 test("organization admin configures providers and rotates multiple masked keys", async ({
   page,
@@ -12,9 +13,7 @@ test("organization admin configures providers and rotates multiple masked keys",
   await page
     .getByLabel("Password", { exact: true })
     .fill(`AI-settings-${stamp}-password`);
-  await page
-    .getByRole("button", { name: "Create account", exact: true })
-    .click();
+  await submitRegistration(page);
   await page.getByLabel("Company name").fill(`Fictional AI Settings ${stamp}`);
   await page
     .getByRole("button", { name: "Create workspace", exact: true })

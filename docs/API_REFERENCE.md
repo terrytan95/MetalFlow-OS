@@ -31,3 +31,5 @@ All configuration routes require organization:manage and verified membership:
 - POST /ai/jobs accepts an optional tenant-owned providerId. The selected provider/model is saved with the queued job.
 
 GET returns masked key suffixes, observed usage, status/cooldown and the most recent 30 attempt records; it never returns key plaintext/ciphertext/fingerprints. See AI_PROVIDERS.md for routing/error rules and native protocol limits.
+
+Bilingual/performance update: inventory now honors page/limit/search with full count; analytics performs SQL aggregation and limits date ranges to 366 days, returns a separate lowStockCount and at most 50 preview/drilldown records. Added GET/POST credit-notes (idempotent, unpaid balance only), GET/POST/PATCH tax-rates, PATCH profile, GET schedule (up to 62 days/1,000 tasks), POST orders/:id/purchase-shortage, GET files and DELETE files/:id (only unlinked uploads). Stock adjustment and fabrication writes accept idempotencyKey.

@@ -1,3 +1,4 @@
+import { submitRegistration } from "./helpers.js";
 import { test, expect } from "@playwright/test";
 import { palettes } from "../../apps/web/components/themes.js";
 test("all Morandi palettes support both modes, readable contrast and persistence", async ({
@@ -13,9 +14,7 @@ test("all Morandi palettes support both modes, readable contrast and persistence
   await page
     .getByLabel("Password", { exact: true })
     .fill(`Theme-${stamp}-password`);
-  await page
-    .getByRole("button", { name: "Create account", exact: true })
-    .click();
+  await submitRegistration(page);
   await page.getByLabel("Company name").fill(`Fictional Theme QA ${stamp}`);
   await page
     .getByRole("button", { name: "Create workspace", exact: true })

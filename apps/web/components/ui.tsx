@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "../lib/i18n";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import type { ReactNode, ButtonHTMLAttributes } from "react";
@@ -26,6 +27,8 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const { t } = useI18n();
+
   return (
     <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
       <Dialog.Portal>
@@ -35,9 +38,9 @@ export function Modal({
           aria-describedby={undefined}
         >
           <div className="dialog-header">
-            <Dialog.Title>{title}</Dialog.Title>
+            <Dialog.Title>{t(title)}</Dialog.Title>
             <Dialog.Close asChild>
-              <Button aria-label="Close">
+              <Button aria-label={t("Close")}>
                 <X size={17} />
               </Button>
             </Dialog.Close>
@@ -49,6 +52,8 @@ export function Modal({
   );
 }
 export function Badge({ value }: { value: string }) {
+  const { t } = useI18n();
+
   return (
     <span
       className={cn(
@@ -57,7 +62,7 @@ export function Badge({ value }: { value: string }) {
         /PENDING|DRAFT|NEW|QUEUED/.test(value) && "neutral",
       )}
     >
-      {value.toLowerCase().replaceAll("_", " ")}
+      {t(value) === value ? value.toLowerCase().replaceAll("_", " ") : t(value)}
     </span>
   );
 }
@@ -68,11 +73,13 @@ export function Empty({
   title?: string;
   description?: string;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="empty">
-      <div className="empty-mark">M</div>
-      <h3>{title}</h3>
-      <p>{description}</p>
+      <div className="empty-mark">{t("M")}</div>
+      <h3>{t(title)}</h3>
+      <p>{t(description)}</p>
     </div>
   );
 }

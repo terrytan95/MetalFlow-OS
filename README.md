@@ -10,6 +10,7 @@ Live: [terrytan.dev/metalflow](https://terrytan.dev/metalflow)
 
 ## Current release
 
+- English/Simplified Chinese UI and PDF labels, lightweight page/dialog motion with reduced-motion support.
 - Seven persistent Morandi/neutral palettes, including black-white-gray, each with light and dark mode.
 - Register, create organizations, invite teammates and enforce default roles.
 - Manage customers, products, inquiries, quotations, approvals and sales orders.
@@ -21,7 +22,7 @@ Live: [terrytan.dev/metalflow](https://terrytan.dev/metalflow)
 - Issue invoices, record idempotent partial payments and report real operational metrics.
 - Organization-managed OpenAI/compatible providers, encrypted multi-key pools, usage-aware rotation, async inquiry extraction, document assistance and interior concepts.
 
-This is an initial operational release. It does **not** implement every feature in the master specification. See [the acceptance matrix](docs/IMPLEMENTATION_ROADMAP.md) and [verified progress](docs/PROGRESS.md). Native CAD, 2D nesting, full accounting, custom roles and complete bilingual forms are not advertised as complete.
+This is an initial operational release. It does **not** implement every feature in the master specification. See [the acceptance matrix](docs/IMPLEMENTATION_ROADMAP.md) and [verified progress](docs/PROGRESS.md). Native CAD, 2D nesting, full accounting and custom roles are not advertised as complete.
 
 ## Development
 
@@ -50,7 +51,7 @@ Theme selector: sign in, then use the palette icon in the global header. Palette
 
 ## Documentation
 
-[Architecture](docs/ARCHITECTURE.md) · [Database](docs/DATABASE_SCHEMA.md) · [API](docs/API_REFERENCE.md) · [Security](docs/SECURITY.md) · [Tests](docs/TESTING.md) · [Backup and restore](docs/BACKUP_RESTORE.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+[Architecture](docs/ARCHITECTURE.md) · [Database](docs/DATABASE_SCHEMA.md) · [API](docs/API_REFERENCE.md) · [Security](docs/SECURITY.md) · [Tests](docs/TESTING.md) · [Backup and restore](docs/BACKUP_RESTORE.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md) · [Performance audit](docs/PERFORMANCE_AUDIT.md)
 
 ## Operational limits
 

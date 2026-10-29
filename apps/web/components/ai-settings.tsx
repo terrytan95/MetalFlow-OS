@@ -1,4 +1,5 @@
 "use client";
+import { useI18n } from "../lib/i18n";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -21,6 +22,8 @@ export function AIProviderSettings({
   organizationId: string;
   onChanged: () => void;
 }) {
+  const { t } = useI18n();
+
   const [editing, setEditing] = useState<RecordData | null>(null),
     [editingKey, setEditingKey] = useState<{
       providerId: string;
@@ -66,8 +69,8 @@ export function AIProviderSettings({
     <section className="ai-settings">
       <div className="panel-title section-title">
         <div>
-          <h2>AI providers & API keys / AI 服务与密钥</h2>
-          <p>Tenant-private credentials. Usage-aware key rotation.</p>
+          <h2>{t("AI providers & API keys / AI 服务与密钥")}</h2>
+          <p>{t("Tenant-private credentials. Usage-aware key rotation.")}</p>
         </div>
         <Button
           onClick={() => {
@@ -77,43 +80,46 @@ export function AIProviderSettings({
           }}
           disabled={!settings.data?.encryptionReady}
         >
-          <Plus size={15} />
-          Add provider
+          <Plus size={15} /> {t("Add provider")}{" "}
         </Button>
       </div>
       <div className="notice">
         <ShieldCheck size={16} />
         <p>
-          Keys are encrypted on the server and never shown again. Rotation stays
-          within the selected provider. Usage is observed by MetalFlow, not your
-          provider's account balance. A request may cross a configured token
-          threshold before its final usage is known.
+          {" "}
+          {t(
+            "Keys are encrypted on the server and never shown again. Rotation stays within the selected provider. Usage is observed by MetalFlow, not your provider's account balance. A request may cross a configured token threshold before its final usage is known.",
+          )}{" "}
         </p>
       </div>
       {!settings.isPending && !settings.data?.encryptionReady && (
         <p className="error">
-          Secret storage is not ready. The server operator must configure
-          AI_KEY_ENCRYPTION_KEY.
+          {" "}
+          {t(
+            "Secret storage is not ready. The server operator must configure AI_KEY_ENCRYPTION_KEY.",
+          )}{" "}
         </p>
       )}
       {error && (
         <p role="alert" className="error">
-          {error}
+          {t(error)}
         </p>
       )}
       {message && (
         <p role="status" className="notice">
-          {message}
+          {t(message)}
         </p>
       )}
       {settings.isPending ? (
-        <p className="muted">Loading providers…</p>
+        <p className="muted">{t("Loading providers…")}</p>
       ) : settings.isError ? (
-        <p className="error">{settings.error.message}</p>
+        <p className="error">{t(settings.error.message)}</p>
       ) : !settings.data.providers.length ? (
         <Empty
-          title="Connect your AI provider"
-          description="Add OpenAI or an OpenAI-compatible endpoint, choose models, then add one or more API keys."
+          title={t("Connect your AI provider")}
+          description={t(
+            "Add OpenAI or an OpenAI-compatible endpoint, choose models, then add one or more API keys.",
+          )}
         />
       ) : (
         settings.data.providers.map((provider: RecordData) => (
@@ -127,9 +133,9 @@ export function AIProviderSettings({
                 <p>
                   {provider.baseUrl} ·{" "}
                   {provider.protocol === "CHAT"
-                    ? "Chat Completions"
-                    : "Responses API"}{" "}
-                  · Priority {provider.priority}
+                    ? t("Chat Completions")
+                    : t("Responses API")}{" "}
+                  {t("· Priority")} {provider.priority}
                 </p>
               </div>
               <div className="actions wrap">
@@ -139,7 +145,8 @@ export function AIProviderSettings({
                     setEditing(provider);
                   }}
                 >
-                  Edit provider
+                  {" "}
+                  {t("Edit provider")}{" "}
                 </Button>
                 <Button
                   onClick={() => {
@@ -147,25 +154,25 @@ export function AIProviderSettings({
                     setError("");
                   }}
                 >
-                  <KeyRound size={14} />
-                  Add API key
+                  <KeyRound size={14} /> {t("Add API key")}{" "}
                 </Button>
               </div>
             </div>
             <p className="muted">
-              Text: {provider.textModel || "Not configured"} · Images:{" "}
-              {provider.imageModel || "Not configured"}
+              {" "}
+              {t("Text:")} {provider.textModel || t("Not configured")}{" "}
+              {t("· Images:")} {provider.imageModel || t("Not configured")}
             </p>
             <div className="table-scroll">
               <table>
                 <thead>
                   <tr>
-                    <th>Key</th>
-                    <th>Status</th>
-                    <th>Today · UTC</th>
-                    <th>Limits / day</th>
-                    <th>Last response</th>
-                    <th>Actions</th>
+                    <th>{t("Key")}</th>
+                    <th>{t("Status")}</th>
+                    <th>{t("Today · UTC")}</th>
+                    <th>{t("Limits / day")}</th>
+                    <th>{t("Last response")}</th>
+                    <th>{t("Actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -180,27 +187,30 @@ export function AIProviderSettings({
                         {key.cooldownUntil &&
                           new Date(key.cooldownUntil) > new Date() && (
                             <small className="key-suffix">
-                              Until{" "}
+                              {" "}
+                              {t("Until")}{" "}
                               {new Date(key.cooldownUntil).toLocaleTimeString()}
                             </small>
                           )}
                       </td>
                       <td>
-                        {key.dailyRequests} requests
-                        <br />
-                        {key.dailyTokens.toLocaleString()} tokens
+                        {key.dailyRequests} {t("requests")} <br />
+                        {key.dailyTokens.toLocaleString()} {t("tokens")}{" "}
                       </td>
                       <td>
-                        {key.dailyRequestLimit || "∞"} requests
-                        <br />
-                        {key.dailyTokenLimit?.toLocaleString() || "∞"} tokens
+                        {key.dailyRequestLimit || "∞"} {t("requests")} <br />
+                        {key.dailyTokenLimit?.toLocaleString() || "∞"}{" "}
+                        {t("tokens")}{" "}
                       </td>
                       <td>
-                        {key.lastErrorCode ||
-                          (key.lastHttpStatus === 200 ? "Success" : "Not used")}
+                        {(key.lastErrorCode ? t(key.lastErrorCode) : null) ||
+                          t(
+                            key.lastHttpStatus === 200 ? "Success" : "Not used",
+                          )}
                         <small className="key-suffix">
-                          Lifetime: {key.totalRequests} requests ·{" "}
-                          {key.totalTokens} tokens
+                          {" "}
+                          {t("Lifetime:")} {key.totalRequests} {t("requests ·")}{" "}
+                          {key.totalTokens} {t("tokens")}{" "}
                         </small>
                       </td>
                       <td>
@@ -211,7 +221,8 @@ export function AIProviderSettings({
                               setEditingKey({ providerId: provider.id, key });
                             }}
                           >
-                            Edit limits
+                            {" "}
+                            {t("Edit limits")}{" "}
                           </Button>
                           <Button
                             disabled={busy}
@@ -223,7 +234,7 @@ export function AIProviderSettings({
                               ).catch(() => {})
                             }
                           >
-                            {key.enabled ? "Disable" : "Enable"}
+                            {key.enabled ? t("Disable") : t("Enable")}
                           </Button>
                           <Button
                             disabled={busy}
@@ -234,10 +245,11 @@ export function AIProviderSettings({
                                 { resetHealth: true },
                               ).catch(() => {})
                             }
-                            title="Clear cooldown or failure after fixing the provider account; daily usage is preserved"
+                            title={t(
+                              "Clear cooldown or failure after fixing the provider account; daily usage is preserved",
+                            )}
                           >
-                            <RefreshCw size={13} />
-                            Reset health
+                            <RefreshCw size={13} /> {t("Reset health")}{" "}
                           </Button>
                           <Button
                             aria-label={`Delete key ${key.label}`}
@@ -256,13 +268,16 @@ export function AIProviderSettings({
             </div>
             {!provider.keys.length && (
               <p className="muted mt">
-                No API keys. Add a key to enable AI requests.
+                {" "}
+                {t("No API keys. Add a key to enable AI requests.")}{" "}
               </p>
             )}
             <div className="provider-footer">
               <span className="muted">
-                Lowest usage ratio first, then least recently used. Up to 20
-                keys per job; four-minute retry window.
+                {" "}
+                {t(
+                  "Lowest usage ratio first, then least recently used. Up to 20 keys per job; four-minute retry window.",
+                )}{" "}
               </span>
               <Button
                 disabled={
@@ -284,23 +299,22 @@ export function AIProviderSettings({
                   } catch {}
                 }}
               >
-                <Play size={13} />
-                Run test request
+                <Play size={13} /> {t("Run test request")}{" "}
               </Button>
             </div>
           </article>
         ))
       )}
       <details className="mt">
-        <summary>Recent key attempts / 自动切换记录</summary>
+        <summary>{t("Recent key attempts / 自动切换记录")}</summary>
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Provider / key</th>
-                <th>Result</th>
-                <th>Tokens</th>
+                <th>{t("Time")}</th>
+                <th>{t("Provider / key")}</th>
+                <th>{t("Result")}</th>
+                <th>{t("Tokens")}</th>
               </tr>
             </thead>
             <tbody>
@@ -313,11 +327,12 @@ export function AIProviderSettings({
                   <tr key={attempt.id}>
                     <td>{new Date(attempt.createdAt).toLocaleString()}</td>
                     <td>
-                      {p?.name || "Removed provider"} /{" "}
-                      {k?.label || "Deleted key"}
+                      {p?.name || t("Removed provider")} /{" "}
+                      {k?.label || t("Deleted key")}
                     </td>
                     <td>
-                      <Badge value={attempt.status} /> {attempt.errorCode || ""}
+                      <Badge value={attempt.status} />{" "}
+                      {t(attempt.errorCode || "")}
                     </td>
                     <td>{attempt.totalTokens}</td>
                   </tr>
@@ -330,7 +345,7 @@ export function AIProviderSettings({
       <Modal
         open={editing !== null}
         onClose={() => setEditing(null)}
-        title={editing?.id ? "Edit AI provider" : "Add AI provider"}
+        title={editing?.id ? t("Edit AI provider") : t("Add AI provider")}
       >
         {editing && (
           <form
@@ -366,7 +381,8 @@ export function AIProviderSettings({
             }}
           >
             <label>
-              Provider name
+              {" "}
+              {t("Provider name")}{" "}
               <input
                 name="name"
                 defaultValue={editing.name || ""}
@@ -377,31 +393,36 @@ export function AIProviderSettings({
             {!editing.id && (
               <>
                 <label>
-                  Provider type
+                  {" "}
+                  {t("Provider type")}{" "}
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                   >
-                    <option value="OPENAI">OpenAI</option>
-                    <option value="COMPATIBLE">OpenAI-compatible API</option>
+                    <option value="OPENAI">{t("OpenAI")}</option>
+                    <option value="COMPATIBLE">
+                      {t("OpenAI-compatible API")}
+                    </option>
                   </select>
                 </label>
                 {type === "COMPATIBLE" && (
                   <>
                     <label>
-                      Base URL
+                      {" "}
+                      {t("Base URL")}{" "}
                       <input
                         name="baseUrl"
                         type="url"
-                        placeholder="https://provider.example/v1"
+                        placeholder={t("https://provider.example/v1")}
                         required
                       />
                     </label>
                     <label>
-                      API protocol
+                      {" "}
+                      {t("API protocol")}{" "}
                       <select name="protocol">
-                        <option value="CHAT">Chat Completions</option>
-                        <option value="RESPONSES">Responses API</option>
+                        <option value="CHAT">{t("Chat Completions")}</option>
+                        <option value="RESPONSES">{t("Responses API")}</option>
                       </select>
                     </label>
                   </>
@@ -410,23 +431,26 @@ export function AIProviderSettings({
             )}
             <div className="form-grid">
               <label>
-                Text model ID
+                {" "}
+                {t("Text model ID")}{" "}
                 <input
                   name="textModel"
                   defaultValue={editing.textModel || ""}
-                  placeholder="Model supported by your provider"
+                  placeholder={t("Model supported by your provider")}
                 />
               </label>
               <label>
-                Image model ID (optional)
+                {" "}
+                {t("Image model ID (optional)")}{" "}
                 <input
                   name="imageModel"
                   defaultValue={editing.imageModel || ""}
-                  placeholder="Images API model, if supported"
+                  placeholder={t("Images API model, if supported")}
                 />
               </label>
               <label>
-                Priority (lower first)
+                {" "}
+                {t("Priority (lower first)")}{" "}
                 <input
                   name="priority"
                   type="number"
@@ -440,18 +464,20 @@ export function AIProviderSettings({
                   name="enabled"
                   type="checkbox"
                   defaultChecked={editing.enabled ?? true}
-                />
-                Enabled
+                />{" "}
+                {t("Enabled")}{" "}
               </label>
             </div>
             <p className="notice">
-              Models must be enabled on your provider account. Provider endpoint
-              and protocol are immutable: create a separate provider to change
-              them. Only enter keys issued for that endpoint.
+              {" "}
+              {t(
+                "Models must be enabled on your provider account. Provider endpoint and protocol are immutable: create a separate provider to change them. Only enter keys issued for that endpoint.",
+              )}{" "}
             </p>
-            {error && <p className="error">{error}</p>}
+            {error && <p className="error">{t(error)}</p>}
             <Button className="primary mt" disabled={busy}>
-              Save provider
+              {" "}
+              {t("Save provider")}{" "}
             </Button>
           </form>
         )}
@@ -483,16 +509,18 @@ export function AIProviderSettings({
             }}
           >
             <label>
-              Key label
+              {" "}
+              {t("Key label")}{" "}
               <input
                 name="label"
                 required
                 maxLength={80}
-                placeholder="Primary · project A"
+                placeholder={t("Primary · project A")}
               />
             </label>
             <label>
-              API key
+              {" "}
+              {t("API key")}{" "}
               <input
                 name="apiKey"
                 type="password"
@@ -503,11 +531,13 @@ export function AIProviderSettings({
               />
             </label>
             <p className="muted mt">
-              Stored encrypted. The full key cannot be read back.
+              {" "}
+              {t("Stored encrypted. The full key cannot be read back.")}{" "}
             </p>
             <div className="form-grid">
               <label>
-                Daily request limit (optional)
+                {" "}
+                {t("Daily request limit (optional)")}{" "}
                 <input
                   name="dailyRequestLimit"
                   type="number"
@@ -516,7 +546,8 @@ export function AIProviderSettings({
                 />
               </label>
               <label>
-                Daily token threshold (optional)
+                {" "}
+                {t("Daily token threshold (optional)")}{" "}
                 <input
                   name="dailyTokenLimit"
                   type="number"
@@ -526,13 +557,15 @@ export function AIProviderSettings({
               </label>
             </div>
             <p className="notice">
-              Counters reset at 00:00 UTC. Exhausted/invalid keys require
-              account repair and Reset health. A timeout does not retry
-              automatically because the provider may already have processed it.
+              {" "}
+              {t(
+                "Counters reset at 00:00 UTC. Exhausted/invalid keys require account repair and Reset health. A timeout does not retry automatically because the provider may already have processed it.",
+              )}{" "}
             </p>
-            {error && <p className="error">{error}</p>}
+            {error && <p className="error">{t(error)}</p>}
             <Button className="primary mt" disabled={busy}>
-              Save API key
+              {" "}
+              {t("Save API key")}{" "}
             </Button>
           </form>
         )}
@@ -540,7 +573,7 @@ export function AIProviderSettings({
       <Modal
         open={editingKey !== null}
         onClose={() => setEditingKey(null)}
-        title="Edit key limits"
+        title={t("Edit key limits")}
       >
         {editingKey && (
           <form
@@ -566,7 +599,8 @@ export function AIProviderSettings({
             }}
           >
             <label>
-              Key label
+              {" "}
+              {t("Key label")}{" "}
               <input
                 name="label"
                 defaultValue={editingKey.key.label}
@@ -574,7 +608,8 @@ export function AIProviderSettings({
               />
             </label>
             <label>
-              Daily request limit
+              {" "}
+              {t("Daily request limit")}{" "}
               <input
                 type="number"
                 name="dailyRequestLimit"
@@ -584,7 +619,8 @@ export function AIProviderSettings({
               />
             </label>
             <label>
-              Daily token threshold
+              {" "}
+              {t("Daily token threshold")}{" "}
               <input
                 type="number"
                 name="dailyTokenLimit"
@@ -594,12 +630,15 @@ export function AIProviderSettings({
               />
             </label>
             <p className="notice">
-              Changing limits does not reset recorded usage. Leave a limit blank
-              for no application-level threshold.
+              {" "}
+              {t(
+                "Changing limits does not reset recorded usage. Leave a limit blank for no application-level threshold.",
+              )}{" "}
             </p>
-            {error && <p className="error">{error}</p>}
+            {error && <p className="error">{t(error)}</p>}
             <Button className="primary mt" disabled={busy}>
-              Save limits
+              {" "}
+              {t("Save limits")}{" "}
             </Button>
           </form>
         )}
@@ -607,15 +646,17 @@ export function AIProviderSettings({
       <Modal
         open={remove !== null}
         onClose={() => setRemove(null)}
-        title="Delete API key?"
+        title={t("Delete API key?")}
       >
         <p>
-          Remove {remove?.key.label} from this organization's key pool? This
-          removes the stored credential; it does not revoke the key at the
-          provider.
+          {" "}
+          {t("Remove")} {remove?.key.label}{" "}
+          {t(
+            "from this organization's key pool? This removes the stored credential; it does not revoke the key at the provider.",
+          )}{" "}
         </p>
         <div className="actions mt">
-          <Button onClick={() => setRemove(null)}>Cancel</Button>
+          <Button onClick={() => setRemove(null)}>{t("Cancel")}</Button>
           <Button
             className="primary"
             disabled={busy}
@@ -630,10 +671,11 @@ export function AIProviderSettings({
                 } catch {}
             }}
           >
-            Delete stored key
+            {" "}
+            {t("Delete stored key")}{" "}
           </Button>
         </div>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error">{t(error)}</p>}
       </Modal>
     </section>
   );

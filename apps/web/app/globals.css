@@ -1818,3 +1818,185 @@ td:first-child {
     flex-wrap: wrap;
   }
 }
+:root {
+  --motion-fast: 140ms;
+  --motion-enter: 220ms;
+  --motion-exit: 140ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+.auth-language {
+  position: absolute;
+  right: 24px;
+  top: 24px;
+}
+.btn,
+.sidebar nav button {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.overlay[data-state="open"] {
+  animation: overlay-in var(--motion-enter) var(--motion-ease);
+}
+.overlay[data-state="closed"] {
+  animation: overlay-out var(--motion-exit) ease;
+}
+.dialog[data-state="open"] {
+  animation: dialog-in var(--motion-enter) var(--motion-ease);
+}
+.dialog[data-state="closed"] {
+  animation: dialog-out var(--motion-exit) ease;
+}
+.toast {
+  animation: notice-in var(--motion-enter) var(--motion-ease);
+}
+.sidebar summary svg {
+  transition: transform var(--motion-fast) ease;
+}
+.sidebar details:not([open]) summary svg {
+  transform: rotate(-90deg);
+}
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -49%) scale(0.99);
+  }
+}
+@keyframes notice-in {
+  from {
+    transform: translateY(-4px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+.record-select {
+  display: block;
+  margin-top: 7px;
+}
+.record-select input {
+  margin-bottom: 5px;
+  font-size: 11px;
+  padding: 7px 10px;
+}
+.record-select select {
+  margin-top: 0;
+}
+.record-select:focus-within {
+  position: relative;
+}
+.profile-button {
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(100px, 1fr));
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+.calendar-day {
+  min-height: 110px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 8px;
+}
+.calendar-day time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.calendar-day button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  border: 0;
+  background: var(--soft);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 7px;
+  margin-top: 6px;
+  font-size: 11px;
+}
+.calendar-day button span {
+  display: block;
+}
+.schedule-task {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+  color: var(--text);
+  text-align: left;
+}
+.schedule-task strong {
+  flex: 1;
+}
+.schedule .panel-title {
+  flex-wrap: wrap;
+}
+.schedule input {
+  width: 150px;
+}
+.field-error {
+  display: block;
+  margin-top: 5px;
+  color: var(--danger);
+}
+.table-scroll[aria-busy="true"] {
+  opacity: 0.65;
+}
+.record-select input {
+  min-width: 0;
+}

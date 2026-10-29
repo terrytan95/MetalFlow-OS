@@ -1,0 +1,35 @@
+{
+  "organizationId": "a3693485-a3ca-48dd-9a51-8c02123d6f60",
+  "results": {
+    "analytics": {
+      "milliseconds": [
+        196.7,
+        184.3,
+        145.2
+      ],
+      "medianMs": 184.28604599999994,
+      "bytes": 10850,
+      "rows": 0
+    },
+    "inventory?page=1&limit=25": {
+      "milliseconds": [
+        79,
+        74.5,
+        88.1
+      ],
+      "medianMs": 78.96251199999995,
+      "bytes": 11035,
+      "rows": 25
+    },
+    "inventory?page=2&limit=25": {
+      "milliseconds": [
+        83.4,
+        83.4,
+        82.7
+      ],
+      "medianMs": 83.37619599999994,
+      "bytes": 11035,
+      "rows": 25
+    }
+  }
+}

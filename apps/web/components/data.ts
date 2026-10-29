@@ -19,6 +19,17 @@ export const config: Record<
     permission: string;
   }
 > = {
+  "tax-rates": {
+    title: "Tax rates",
+    zh: "税率",
+    description: "Configure tax labels and rates for your organization.",
+    permission: "finance:write",
+    columns: ["name", "rate", "active"],
+    fields: [
+      { key: "name", label: "Tax name", required: true },
+      { key: "rate", label: "Rate (%)", type: "number", required: true },
+    ],
+  },
   "change-orders": {
     title: "Project change orders",
     zh: "项目变更单",
@@ -63,6 +74,13 @@ export const config: Record<
       },
       { key: "address", label: "Address" },
       { key: "notes", label: "Notes", type: "textarea" },
+      { key: "tags", label: "Tags (comma separated)", type: "tags" },
+      {
+        key: "creditLimit",
+        label: "Credit limit",
+        type: "number",
+        default: "0",
+      },
     ],
   },
   products: {
@@ -315,6 +333,8 @@ export const groups = [
     items: [
       ["invoices", "Invoices", "发票"],
       ["payments", "Payments", "收款"],
+      ["credit-notes", "Credit notes", "贷项通知单"],
+      ["tax-rates", "Tax rates", "税率"],
       ["expenses", "Expenses", "费用"],
       ["analytics", "Analytics", "分析"],
       ["assistant", "AI assistant", "AI 助手"],
