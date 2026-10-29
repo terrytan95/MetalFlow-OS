@@ -104,3 +104,4 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Standardized empty-state record creation button margins with a dedicated `.table-empty-actions` wrapper providing consistent 20px padding (14px on mobile) matching filter bar and pagination.
 - Aligned dropdown select arrows across all native selects with custom SVG chevron and balanced horizontal/vertical margins.
 - Desaturated default Foundry theme to Morandi pine-teal (#365c52 / dark #8faea5) and added 6 new Morandi palettes (olive, clay, stone, pine, sand, mauve) with verified WCAG AA (>= 4.5:1) contrast across light and dark modes.
+- Bound global scrollbar colors (standard `scrollbar-color` and `::-webkit-scrollbar` thumb/hover) to active theme tokens (`--scrollbar-thumb` and `--scrollbar-thumb-hover`), replacing browser default grey scrollbars across the sidebar, tables, dialogs and kanban views.
