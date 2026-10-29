@@ -2,6 +2,7 @@ import { snapshotCost } from "./costs.js";
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from "@nestjs/common";
 import { Decimal } from "decimal.js";
@@ -12,8 +13,116 @@ import {
   documentSchema,
   totals,
   type Line,
+  availableTransitions,
+  can,
+  transitionPermission,
 } from "../../../packages/shared/src/domain.js";
 import { audit, json, owned, serial, type Context } from "./context.js";
+export async function updateInvoiceTerms(c: Context, id: string, raw: unknown) {
+  if (!can(c.role, "finance:write")) throw new ForbiddenException();
+  const x = z
+    .object({
+      dueDate: z.string().datetime().nullable(),
+      notes: z.string().max(5000).optional(),
+    })
+    .strict()
+    .parse(raw);
+  return serial(async (tx) => {
+    const d = await tx.document.findFirst({
+      where: {
+        id,
+        organizationId: c.organizationId,
+        kind: "INVOICE",
+        status: "DRAFT",
+      },
+    });
+    if (!d)
+      throw new ConflictException("Only draft invoice terms can be edited");
+    const out = await tx.document.update({
+      where: { id },
+      data: { ...x, version: { increment: 1 } },
+    });
+    await tx.documentVersion.create({
+      data: {
+        organizationId: c.organizationId,
+        documentId: id,
+        version: out.version,
+        snapshot: json(out),
+        createdBy: c.userId,
+      },
+    });
+    await audit(tx, c, "document.revise", id);
+    return out;
+  });
+}
+export async function reviseDocument(c: Context, id: string, raw: unknown) {
+  const x = documentSchema.parse(raw);
+  if (!can(c.role, transitionPermission(x.kind, "DRAFT")))
+    throw new ForbiddenException();
+  return serial(async (tx) => {
+    const d = await tx.document.findFirst({
+      where: { id, organizationId: c.organizationId },
+    });
+    if (
+      !d ||
+      d.status !== "DRAFT" ||
+      d.kind !== x.kind ||
+      (d.sourceId && d.kind !== "PURCHASE")
+    )
+      throw new ConflictException(
+        "Only original or purchase drafts can be edited",
+      );
+    const products = await tx.product.findMany({
+      where: {
+        organizationId: c.organizationId,
+        id: {
+          in: [
+            ...new Set(
+              x.lines.flatMap((l) => (l.productId ? [l.productId] : [])),
+            ),
+          ],
+        },
+      },
+      select: { id: true, unit: true },
+    });
+    const byId = new Map(products.map((p) => [p.id, p]));
+    for (const l of x.lines)
+      if (l.productId && byId.get(l.productId)?.unit !== l.unit)
+        throw new BadRequestException("Invalid product or unit");
+    if (d.inquiryId && x.customerId !== d.customerId)
+      throw new ConflictException(
+        "An inquiry-linked draft cannot change customer",
+      );
+    if (x.customerId) await owned(tx, "customer", c, x.customerId);
+    if (x.supplierId) await owned(tx, "supplier", c, x.supplierId);
+    const updated = await tx.document.update({
+      where: { id },
+      data: {
+        customerId: x.customerId,
+        supplierId: x.supplierId,
+        lines: json(x.lines),
+        notes: x.notes,
+        ...totals(x.lines, x.discount, x.taxRate),
+        version: { increment: 1 },
+        validUntil: x.validUntil,
+        dueDate: x.dueDate,
+      },
+    });
+    if (x.kind !== "PURCHASE")
+      await snapshotCost(tx, c.organizationId, id, x.lines);
+    await tx.documentVersion.create({
+      data: {
+        organizationId: c.organizationId,
+        documentId: id,
+        version: updated.version,
+        snapshot: json(updated),
+        createdBy: c.userId,
+      },
+    });
+    await audit(tx, c, "document.revise", id);
+    return updated;
+  });
+}
 export async function createDocument(c: Context, raw: unknown) {
   const x = documentSchema.parse(raw);
   return serial(async (tx) => {
@@ -91,37 +200,17 @@ export async function createDocument(c: Context, raw: unknown) {
     return doc;
   });
 }
-const transitions: Record<string, Record<string, string[]>> = {
-  QUOTATION: {
-    DRAFT: ["PENDING_APPROVAL"],
-    PENDING_APPROVAL: ["APPROVED", "REJECTED"],
-    APPROVED: ["SENT"],
-    SENT: ["ACCEPTED", "REJECTED"],
-    ACCEPTED: [],
-    REJECTED: [],
-  },
-  ORDER: {
-    DRAFT: ["CONFIRMED", "CANCELLED"],
-    CONFIRMED: ["CANCELLED"],
-    RESERVED: ["PROCESSING", "CANCELLED"],
-    PROCESSING: ["CANCELLED"],
-    PARTIALLY_FULFILLED: [],
-  },
-  PURCHASE: {
-    DRAFT: ["PENDING_APPROVAL", "CANCELLED"],
-    PENDING_APPROVAL: ["APPROVED", "REJECTED"],
-    APPROVED: ["SENT", "CANCELLED"],
-    SENT: ["CANCELLED"],
-  },
-  INVOICE: { DRAFT: ["ISSUED"], ISSUED: [] },
-};
 export async function transition(c: Context, id: string, status: string) {
   return serial(async (tx) => {
     const d = await tx.document.findFirst({
       where: { id, organizationId: c.organizationId },
     });
     if (!d) throw new NotFoundException();
-    if (!transitions[d.kind]?.[d.status]?.includes(status))
+    if (!can(c.role, transitionPermission(d.kind, status)))
+      throw new ForbiddenException();
+    if (
+      !availableTransitions({ ...d, lines: d.lines as Line[] }).includes(status)
+    )
       throw new ConflictException(`Cannot change ${d.status} to ${status}`);
     if (status === "CANCELLED" && d.kind === "ORDER") {
       if (
@@ -201,6 +290,7 @@ export async function convertDocument(
         kind,
         sourceId: id,
         customerId: d.customerId,
+        dueDate: kind === "INVOICE" ? d.dueDate : null,
         number: `${kind === "ORDER" ? "SO" : "INV"}-${randomUUID().slice(0, 8).toUpperCase()}`,
         currency: d.currency,
         notes: d.notes,
@@ -505,8 +595,7 @@ export async function receive(c: Context, id: string, raw: unknown) {
     const ordered = new Map<string, Decimal>(),
       received = new Map<string, Decimal>();
     for (const l of po.lines as Line[]) {
-      if (!l.productId)
-        throw new BadRequestException("Receiving requires catalog products");
+      if (!l.productId) continue;
       ordered.set(
         l.productId,
         (ordered.get(l.productId) || new Decimal(0)).plus(l.quantity),

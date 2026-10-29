@@ -77,3 +77,25 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 ## Mobile Viewport Polish (2026-10-29)
 - Fixed mobile authentication form width and padding to ensure exactly 390px viewport fit without horizontal scrollbar.
 - Re-verified full Chinese login screen rendering and form validity messages via headless Chromium on production environment.
+
+## Design and workflow audit (2026-10-29)
+- Pulled `main` with `--ff-only`; checkout and `origin/main` already matched `7263965`.
+- [Audit report and fresh screenshots](audits/2026-10-29/DESIGN_WORKFLOW_AUDIT.md) record 11 findings, including four high-priority workflow issues. No application fixes were made.
+- Live Ego checks covered public English/Chinese auth, desktop/mobile widths, language persistence, keyboard order, required-field validation and representative contrast. Authenticated business findings were verified against source, not exercised in production.
+- Source findings include missing due dates on converted invoices, inaccessible order cancellation, incompatible non-stock receiving/fulfillment, navigation/modal state conflicts, and incomplete shortage/partial-operation UX. These qualify earlier implementation claims; fixes and dedicated regression verification remain outstanding.
+- No production data changes, test-suite rerun, deployment, commit or push occurred during this audit.
+
+## Design and workflow audit fixes (2026-10-29)
+- Resolved all 11 audit issues (4 high-priority, 7 medium-priority) across commercial workflows and frontend interactions:
+  - B1: Converted invoices now preserve due dates; added draft-only payment terms endpoint; updated aging query to distinguish undated and overdue buckets (-1 to 4).
+  - B2: Exposed order/purchase cancellation with confirmation explaining stock effects; automatically releases reservations for eligible orders.
+  - B3: Separated catalog lines (which track inventory) from non-stock lines (labor/freight); service-only orders/purchases complete without inventory operations.
+  - B4: Added purchase shortage draft creation modal from order detail, preserving source lineage while allowing supplier price edits.
+  - B5: Stock receiving/fulfillment now tracks ordered, completed, and remaining quantities; inputs default and constrain to remaining balances; warehouse selection for orders is restricted to reservation warehouses.
+  - B6: ResourceForm now explicitly distinguishes unchanged omissions from cleared fields; sends validated nulls for nullable dates and foreign keys.
+  - W1: Coordinated route navigation and modal intent into single transitions; prevented hashchange from dismissing freshly opened forms.
+  - W2: Added dirty state tracking and confirmation prompt before closing modals with unsaved changes.
+  - W3: Added "Back to sign in" navigation to password recovery, recovery-specific instructions, and neutral status message.
+  - W4: Updated mobile touch targets to >= 44x44px for primary/icon/text buttons and form inputs to >= 16px font size to prevent mobile zoom.
+  - W5: RecordsTable now renders distinct states for no data, no search matches (with clear search action), and permission/load errors.
+- Verification: 43 unit tests passing in Vitest, 8/8 comprehensive audit E2E scenarios passing in Playwright, strict TypeScript, lint, and production Next.js build verified.

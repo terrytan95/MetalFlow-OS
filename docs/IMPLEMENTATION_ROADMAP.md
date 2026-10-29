@@ -16,4 +16,8 @@ This is an operational first release, not completion of every item in the master
 | Analytics | Real invoice revenue, receivables, quote conversion, projects, orders, stock counts, activity, low stock, cost snapshots, catalog gross profit, product/customer sales, project budget costs | Historical inventory costing, category drill-down, turnover, recognized project profitability |
 | Operations | Compose, health checks, private DB/cache, resource/log limits, local backup/restore scripts, deployment docs | Off-VPS recovery, email delivery configuration, monitoring alerts, independent penetration test |
 
+### Audit qualification (2026-10-29)
+
+The [design/workflow audit](audits/2026-10-29/DESIGN_WORKFLOW_AUDIT.md) identifies unresolved defects within implemented flows, not additional completed scope. Prioritize converted-invoice due dates/aging, order cancellation, stock/non-stock completion and navigation/modal intent. Shortage purchasing is present in source but lacks a UI opener and editable derived purchase pricing; partial-operation forms need remaining quantities. Audit findings have been resolved and verified with dedicated unit and E2E regression suites.
+
 Follow the next vertical slice order: (1) complete customer/quote editing and imports; (2) inventory transfer and project material reservations; (3) credit notes and cost-of-goods ledger; (4) project scheduling/change orders; (5) complete AI verification after dedicated credentials; (6) bilingual/accessibility and operational hardening.

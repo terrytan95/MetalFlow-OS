@@ -37,8 +37,8 @@ export const documentSchema = z
     discount: amount.default("0"),
     taxRate: amount.refine((v) => new Decimal(v).lte(100)).default("0"),
     notes: z.string().max(5000).default(""),
-    validUntil: z.string().datetime().optional(),
-    dueDate: z.string().datetime().optional(),
+    validUntil: z.string().datetime().nullish(),
+    dueDate: z.string().datetime().nullish(),
   })
   .superRefine((x, ctx) => {
     if (x.kind === "PURCHASE") {
@@ -54,6 +54,68 @@ export const documentSchema = z
       });
   });
 export type Line = z.infer<typeof lineSchema>;
+export const documentTransitions: Record<string, Record<string, string[]>> = {
+  QUOTATION: {
+    DRAFT: ["PENDING_APPROVAL"],
+    PENDING_APPROVAL: ["APPROVED", "REJECTED"],
+    APPROVED: ["SENT"],
+    SENT: ["ACCEPTED", "REJECTED"],
+  },
+  ORDER: {
+    DRAFT: ["CONFIRMED", "CANCELLED"],
+    CONFIRMED: ["FULFILLED", "CANCELLED"],
+    RESERVED: ["PROCESSING", "CANCELLED"],
+    PROCESSING: ["CANCELLED"],
+  },
+  PURCHASE: {
+    DRAFT: ["PENDING_APPROVAL", "CANCELLED"],
+    PENDING_APPROVAL: ["APPROVED", "REJECTED"],
+    APPROVED: ["SENT", "RECEIVED", "CANCELLED"],
+    SENT: ["RECEIVED", "CANCELLED"],
+  },
+  INVOICE: { DRAFT: ["ISSUED"] },
+};
+export function transitionPermission(kind: string, status: string) {
+  return kind === "INVOICE"
+    ? "finance:write"
+    : `${kind === "PURCHASE" ? "purchase" : "sales"}:${status === "APPROVED" ? "approve" : "write"}`;
+}
+export function availableTransitions(
+  d: {
+    kind: string;
+    status: string;
+    lines: Line[];
+  },
+  invoiced = false,
+) {
+  return (documentTransitions[d.kind]?.[d.status] || []).filter(
+    (status) =>
+      !(status === "CANCELLED" && d.kind === "ORDER" && invoiced) &&
+      !(
+        ["FULFILLED", "RECEIVED"].includes(status) &&
+        d.lines.some((l) => l.productId)
+      ),
+  );
+}
+export function stockLines(lines: Line[]) {
+  const grouped = new Map<
+    string,
+    { productId: string; description: string; unit: string; quantity: string }
+  >();
+  for (const line of lines) {
+    if (!line.productId) continue;
+    const prior = grouped.get(line.productId);
+    grouped.set(line.productId, {
+      productId: line.productId,
+      description: line.description,
+      unit: line.unit,
+      quantity: new Decimal(prior?.quantity || "0")
+        .plus(line.quantity)
+        .toString(),
+    });
+  }
+  return [...grouped.values()];
+}
 export function totals(lines: Line[], discount = "0", taxRate = "0") {
   const subtotal = lines.reduce(
     (s, l) =>

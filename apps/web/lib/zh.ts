@@ -1,4 +1,36 @@
 export const zh: Record<string, string> = {
+  "Enter your email address to request a password reset link.":
+    "输入邮箱地址以申请密码重置链接。",
+  "Back to sign in": "返回登录",
+  "Catalog lines move stock. Non-stock lines complete with the final delivery or receipt.":
+    "目录商品会变动库存。非库存项目随最后一次交付或收货完成。",
+  "Stock item": "库存商品",
+  "Non-stock item / service": "非库存项目／服务",
+  "Ordered / reserved: {ordered} · Completed: {completed} · Remaining: {remaining}":
+    "订购／预留：{ordered} · 已完成：{completed} · 剩余：{remaining}",
+  "Discard unsaved changes?": "放弃未保存的更改？",
+  "No matching records": "没有匹配的记录",
+  "No records are available in this workspace.": "此工作区暂无记录。",
+  'No records match "{query}".': "没有与“{query}”匹配的记录。",
+  "Clear search": "清除搜索",
+  "Create record": "创建记录",
+  "Edit payment terms": "编辑付款条款",
+  Undated: "未设到期日",
+  Current: "未到期",
+  "1–30 days overdue": "逾期 1–30 天",
+  "31–60 days overdue": "逾期 31–60 天",
+  "61–90 days overdue": "逾期 61–90 天",
+  "90+ days overdue": "逾期超过 90 天",
+  "Complete services": "完成服务",
+  "Cancel document": "取消单据",
+  "Cancel this order? All remaining stock reservations will be released.":
+    "取消此订单？所有剩余库存预留都会释放。",
+  "Cancel this purchase? No stock will be received.":
+    "取消此采购单？此单将不再收货。",
+  "Only draft invoice terms can be edited": "只能编辑草稿发票的付款条款",
+  "Only original or purchase drafts can be edited":
+    "只能编辑原始草稿或采购草稿",
+
   Workspace: "工作区",
   Overview: "概览",
   Dashboard: "仪表盘",

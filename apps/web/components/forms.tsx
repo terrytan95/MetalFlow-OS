@@ -42,8 +42,8 @@ export function ResourceForm({
           : f.type === "json"
             ? JSON.stringify(record[f.key])
             : f.type === "date"
-              ? record[f.key]?.slice(0, 10)
-              : record[f.key]
+              ? record[f.key]?.slice(0, 10) || ""
+              : (record[f.key] ?? "")
         : f.default || f.options?.[0] || "",
     ]),
   );
@@ -61,7 +61,17 @@ export function ResourceForm({
           const data: RecordData = {};
           for (const f of fields) {
             const v = values[f.key];
-            if (v !== "") {
+            if (v === "" && record && !f.required) {
+              data[f.key] =
+                f.type === "date" ||
+                f.resource ||
+                f.key.endsWith("Id") ||
+                f.key === "assignedTo"
+                  ? null
+                  : f.type === "tags"
+                    ? []
+                    : "";
+            } else if (v !== "") {
               data[f.key] =
                 f.type === "tags"
                   ? String(v)
@@ -245,7 +255,9 @@ export function DocumentForm({
                       valid + "T23:59:59Z",
                     ).toISOString(),
                   }
-                : {}),
+                : record
+                  ? { [kind === "QUOTATION" ? "validUntil" : "dueDate"]: null }
+                  : {}),
             },
           );
           done();
@@ -279,9 +291,17 @@ export function DocumentForm({
         </label>
       </div>
       <h3 className="section-title">{t("Materials & services")}</h3>
+      <p className="notice">
+        {t(
+          "Catalog lines move stock. Non-stock lines complete with the final delivery or receipt.",
+        )}
+      </p>
       <div className="quote-lines">
         {lines.map((l, i) => (
           <div key={i} className="quote-line">
+            <span className="muted">
+              {l.productId ? t("Stock item") : t("Non-stock item / service")}
+            </span>
             <label>
               {" "}
               {t("Catalog product")}{" "}
@@ -367,6 +387,7 @@ export function DocumentForm({
               </label>
               <Button
                 type="button"
+                data-draft-change
                 aria-label={t("Remove line")}
                 disabled={lines.length === 1}
                 onClick={() => setLines(lines.filter((_, j) => j !== i))}
@@ -379,6 +400,7 @@ export function DocumentForm({
       </div>
       <Button
         type="button"
+        data-draft-change
         onClick={() =>
           setLines([
             ...lines,

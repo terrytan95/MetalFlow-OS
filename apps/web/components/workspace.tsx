@@ -62,7 +62,8 @@ import {
   Download,
 } from "lucide-react";
 import { config, groups, kinds, can, titleCase, type RecordData } from "./data";
-import { Button, Modal, Badge, Empty } from "./ui";
+import { Button, Modal, Badge, Empty, confirmDialogDiscard } from "./ui";
+import { StockOperation } from "./stock-operation";
 import {
   AuthScreen,
   Onboarding,
@@ -283,20 +284,27 @@ function Application() {
       localStorage.setItem("metalflow.org", membership.organizationId);
     }
   }, [membership, organization]);
-  const navigate = useCallback((v: string) => {
-    setView(v);
-    location.hash = v;
-    setSearch("");
-    setPage(1);
-    setMobile(false);
-    setModal("");
-    setSelected(undefined);
-  }, []);
+  const navigate = useCallback(
+    (
+      v: string,
+      intent?: { modal: string; record?: RecordData; saved?: boolean },
+    ) => {
+      if (!intent?.saved && !confirmDialogDiscard(t)) return;
+      setView(v);
+      if (location.hash !== `#${v}`) history.pushState(null, "", `#${v}`);
+      setSearch("");
+      setPage(1);
+      setMobile(false);
+      setModal(intent?.modal || "");
+      setSelected(intent?.record);
+    },
+    [t],
+  );
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setModal("command");
+        if (confirmDialogDiscard(t)) setModal("command");
       }
       if (
         e.key === "/" &&
@@ -312,6 +320,10 @@ function Application() {
     const hash = () => {
       const v = location.hash.slice(1);
       if (groups.flatMap((g) => g.items).some((i) => i[0] === v)) {
+        if (!confirmDialogDiscard(t)) {
+          history.pushState(null, "", `#${view}`);
+          return;
+        }
         setView(v);
         setSearch("");
         setPage(1);
@@ -325,7 +337,7 @@ function Application() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("hashchange", hash);
     };
-  }, []);
+  }, [t, view]);
   const [board, setBoard] = useState(false),
     [schedule, setSchedule] = useState(false);
   const done = () => {
@@ -394,6 +406,17 @@ function Application() {
       api(
         `${endpoint}${endpoint.endsWith("?") ? "" : "&"}page=${page}&search=${encodeURIComponent(searchValue)}`,
       ),
+  });
+  const documentQuery = useQuery({
+    queryKey: ["document", organization, selected?.id],
+    refetchOnWindowFocus: false,
+    enabled:
+      !!org &&
+      !!kinds[view] &&
+      !!selected?.id &&
+      ["detail", "terms"].includes(modal),
+    queryFn: () => api(`documents/${selected?.id}`),
+    staleTime: 0,
   });
   const analytics = useQuery({
     queryKey: ["analytics", organization, range],
@@ -629,6 +652,7 @@ function Application() {
             aria-label={t("Select workspace")}
             value={organization}
             onChange={(e) => {
+              if (!confirmDialogDiscard(t)) return;
               if (e.target.value === "new") setModal("organization");
               else {
                 setModal("");
@@ -700,6 +724,7 @@ function Application() {
           <Button
             aria-label={t("Sign out")}
             onClick={async () => {
+              if (!confirmDialogDiscard(t)) return;
               await api("auth/sign-out", "POST", {});
               localStorage.removeItem("metalflow.org");
               pendingMutations.current.clear();
@@ -786,8 +811,7 @@ function Application() {
               <Button
                 className="primary quick-create"
                 onClick={() => {
-                  navigate("inquiries");
-                  setModal("create");
+                  navigate("inquiries", { modal: "create" });
                 }}
               >
                 <Plus size={16} />
@@ -1485,6 +1509,41 @@ function Application() {
               ) : (
                 <RecordsTable
                   resource={view}
+                  empty={
+                    <div>
+                      <Empty
+                        title={
+                          searchValue
+                            ? t("No matching records")
+                            : t("No records yet")
+                        }
+                        description={
+                          searchValue
+                            ? t('No records match "{query}".', {
+                                query: searchValue,
+                              })
+                            : t("No records are available in this workspace.")
+                        }
+                      />
+                      <div className="actions">
+                        {searchValue ? (
+                          <Button
+                            onClick={() => {
+                              setSearch("");
+                              setPage(1);
+                            }}
+                          >
+                            {t("Clear search")}
+                          </Button>
+                        ) : can(role, writePermission) &&
+                          (config[view] || kinds[view]) ? (
+                          <Button onClick={() => setModal("create")}>
+                            {t("Create record")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  }
                   items={list.data?.items || []}
                   columns={
                     config[view]?.columns ||
@@ -1603,10 +1662,25 @@ function Application() {
           onSubmit={async (e) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
-            await act(
-              `orders/${selected?.id}/purchase-shortage`,
-              Object.fromEntries(f),
-            );
+            if (actionLock.current) return;
+            actionLock.current = true;
+            try {
+              const purchase = await api(
+                `orders/${selected?.id}/purchase-shortage`,
+                "POST",
+                Object.fromEntries(f),
+              );
+              refresh();
+              navigate("purchases", {
+                modal: "detail",
+                record: purchase,
+                saved: true,
+              });
+            } catch (error) {
+              setFormError((error as Error).message);
+            } finally {
+              actionLock.current = false;
+            }
           }}
         >
           <label>
@@ -1803,9 +1877,7 @@ function Application() {
               <button
                 key={r.id}
                 onClick={() => {
-                  navigate(group.resource);
-                  setSelected(r);
-                  setModal("detail");
+                  navigate(group.resource, { modal: "detail", record: r });
                 }}
               >
                 {r.name || r.subject}
@@ -2004,6 +2076,54 @@ function Application() {
         )}
       </Modal>
       <Modal
+        open={modal === "terms"}
+        onClose={() => setModal("")}
+        title={t("Edit payment terms")}
+      >
+        {documentQuery.data && (
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              try {
+                await api(`documents/${selected?.id}/terms`, "PATCH", {
+                  dueDate: form.get("dueDate")
+                    ? new Date(`${form.get("dueDate")}T23:59:59Z`).toISOString()
+                    : null,
+                  notes: String(form.get("notes")),
+                });
+                done();
+              } catch (error) {
+                setFormError((error as Error).message);
+              }
+            }}
+          >
+            <label>
+              {t("Due date")}
+              <input
+                type="date"
+                name="dueDate"
+                defaultValue={documentQuery.data.dueDate?.slice(0, 10) || ""}
+              />
+            </label>
+            <label>
+              {t("Terms & notes")}
+              <textarea
+                name="notes"
+                defaultValue={documentQuery.data.notes}
+                maxLength={5000}
+              />
+            </label>
+            {formError && (
+              <p className="error" role="alert">
+                {t(formError)}
+              </p>
+            )}
+            <Button className="primary mt">{t("Save")}</Button>
+          </form>
+        )}
+      </Modal>
+      <Modal
         open={modal === "edit-document"}
         onClose={() => setModal("")}
         title={t("Revise draft")}
@@ -2092,309 +2212,285 @@ function Application() {
           selected &&
           (kinds[view] ? (
             <>
-              <div className="detail-heading">
-                <Badge value={selected.status} />
-                <strong>{money(selected.total)}</strong>
-                <small>
-                  {" "}
-                  {t("Version")} {selected.version} · {selected.currency}
-                </small>
-              </div>
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t("Description")}</th>
-                      <th>{t("Quantity")}</th>
-                      <th>{t("Unit price")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selected.lines.map((l: any, i: number) => (
-                      <tr key={i}>
-                        <td>{l.description}</td>
-                        <td>
-                          {l.quantity} {enumLabel("unit", l.unit, locale)}
-                        </td>
-                        <td>{l.unitPrice}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="muted">{selected.notes}</p>
-              <div className="actions wrap">
-                {selected.kind === "INVOICE" &&
-                  ["ISSUED", "PARTIALLY_PAID"].includes(selected.status) &&
-                  can(role, "finance:write") && (
-                    <Button onClick={() => setModal("credit")}>
-                      {t("Issue credit note")}
-                    </Button>
-                  )}
+              {documentQuery.isPending || documentQuery.isFetching ? (
+                <p className="muted">{t("Loading…")}</p>
+              ) : documentQuery.isError ? (
+                <div className="error" role="alert">
+                  {t(documentQuery.error.message)}
+                  <Button onClick={() => documentQuery.refetch()}>
+                    {t("Retry")}
+                  </Button>
+                </div>
+              ) : (
+                documentQuery.data && (
+                  <>
+                    <div className="detail-heading">
+                      <Badge value={documentQuery.data.status} />
+                      <strong>{money(documentQuery.data.total)}</strong>
+                      <small>
+                        {" "}
+                        {t("Version")} {documentQuery.data.version} ·{" "}
+                        {documentQuery.data.currency}
+                      </small>
+                    </div>
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{t("Description")}</th>
+                            <th>{t("Quantity")}</th>
+                            <th>{t("Unit price")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {documentQuery.data.lines.map((l: any, i: number) => (
+                            <tr key={i}>
+                              <td>{l.description}</td>
+                              <td>
+                                {l.quantity} {enumLabel("unit", l.unit, locale)}
+                              </td>
+                              <td>{l.unitPrice}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="muted">{documentQuery.data.notes}</p>
+                    {documentQuery.data.kind === "INVOICE" && (
+                      <p>
+                        {t("Due date")}:{" "}
+                        {documentQuery.data.dueDate
+                          ? formatDate(documentQuery.data.dueDate, locale)
+                          : t("Undated")}
+                      </p>
+                    )}
+                    {documentQuery.data.lines.some(
+                      (line: RecordData) => !line.productId,
+                    ) && (
+                      <p className="notice">
+                        {t(
+                          "Catalog lines move stock. Non-stock lines complete with the final delivery or receipt.",
+                        )}
+                      </p>
+                    )}
+                    <div className="actions wrap">
+                      {documentQuery.data.kind === "INVOICE" &&
+                        ["ISSUED", "PARTIALLY_PAID"].includes(
+                          documentQuery.data.status,
+                        ) &&
+                        can(role, "finance:write") && (
+                          <Button onClick={() => setModal("credit")}>
+                            {t("Issue credit note")}
+                          </Button>
+                        )}
 
-                {selected.status === "DRAFT" &&
-                  !selected.sourceId &&
-                  can(role, writePermission) && (
-                    <Button onClick={() => setModal("edit-document")}>
-                      {" "}
-                      {t("Edit draft")}{" "}
-                    </Button>
-                  )}
+                      {documentQuery.data.status === "DRAFT" &&
+                        (!documentQuery.data.sourceId ||
+                          documentQuery.data.kind === "PURCHASE") &&
+                        can(role, writePermission) && (
+                          <Button onClick={() => setModal("edit-document")}>
+                            {" "}
+                            {t("Edit draft")}{" "}
+                          </Button>
+                        )}
 
-                {can(role, writePermission) &&
-                  (
-                    {
-                      DRAFT: ["PENDING_APPROVAL"],
-                      PENDING_APPROVAL: ["APPROVED", "REJECTED"],
-                      APPROVED: ["SENT"],
-                      SENT: ["ACCEPTED", "REJECTED"],
-                    } as Record<string, string[]>
-                  )[selected.status]
-                    ?.filter(
-                      (s) =>
-                        selected.kind === "QUOTATION" ||
-                        (selected.kind === "PURCHASE" && s !== "ACCEPTED"),
-                    )
-                    .filter(
-                      (s) =>
-                        s !== "APPROVED" ||
-                        can(
-                          role,
-                          selected.kind === "PURCHASE"
-                            ? "purchase:approve"
-                            : "sales:approve",
+                      {documentQuery.data.allowedTransitions.map(
+                        (status: string) => (
+                          <Button
+                            key={status}
+                            onClick={() => {
+                              if (
+                                status === "CANCELLED" &&
+                                !window.confirm(
+                                  t(
+                                    documentQuery.data.kind === "ORDER"
+                                      ? "Cancel this order? All remaining stock reservations will be released."
+                                      : "Cancel this purchase? No stock will be received.",
+                                  ),
+                                )
+                              )
+                                return;
+                              void act(
+                                `documents/${documentQuery.data.id}/status`,
+                                { status },
+                              );
+                            }}
+                          >
+                            {status === "FULFILLED" || status === "RECEIVED"
+                              ? t("Complete services")
+                              : status === "CANCELLED"
+                                ? t("Cancel document")
+                                : status === "CONFIRMED"
+                                  ? t("Confirm order")
+                                  : status === "ISSUED"
+                                    ? t("Issue invoice")
+                                    : t(titleCase(status))}
+                          </Button>
                         ),
-                    )
-                    .map((s) => (
+                      )}
+                      {documentQuery.data.kind === "INVOICE" &&
+                        documentQuery.data.status === "DRAFT" &&
+                        can(role, "finance:write") && (
+                          <Button onClick={() => setModal("terms")}>
+                            {t("Edit payment terms")}
+                          </Button>
+                        )}
+                      {documentQuery.data.kind === "ORDER" &&
+                        ["DRAFT", "CONFIRMED"].includes(
+                          documentQuery.data.status,
+                        ) &&
+                        documentQuery.data.lines.some(
+                          (line: RecordData) => line.productId,
+                        ) &&
+                        can(role, "purchase:write") &&
+                        can(role, "cost:read") && (
+                          <Button onClick={() => setModal("shortage")}>
+                            {t("Purchase shortage")}
+                          </Button>
+                        )}
+                      {documentQuery.data.kind === "QUOTATION" &&
+                        documentQuery.data.status === "ACCEPTED" &&
+                        can(role, "sales:write") && (
+                          <Button
+                            className="primary"
+                            onClick={() =>
+                              act(
+                                `documents/${documentQuery.data.id}/convert`,
+                                {
+                                  kind: "ORDER",
+                                },
+                              )
+                            }
+                          >
+                            {" "}
+                            {t("Convert to sales order")}{" "}
+                          </Button>
+                        )}
+                      {documentQuery.data.kind === "ORDER" &&
+                        [
+                          "CONFIRMED",
+                          "RESERVED",
+                          "PROCESSING",
+                          "FULFILLED",
+                          "PARTIALLY_FULFILLED",
+                        ].includes(documentQuery.data.status) &&
+                        can(role, "finance:write") && (
+                          <Button
+                            onClick={() =>
+                              act(
+                                `documents/${documentQuery.data.id}/convert`,
+                                {
+                                  kind: "INVOICE",
+                                },
+                              )
+                            }
+                          >
+                            {" "}
+                            {t("Create invoice")}{" "}
+                          </Button>
+                        )}
+                      {documentQuery.data.kind === "QUOTATION" &&
+                        can(role, "sales:write") && (
+                          <Button
+                            onClick={() =>
+                              act(
+                                `documents/${documentQuery.data.id}/duplicate`,
+                                {},
+                              )
+                            }
+                          >
+                            {" "}
+                            {t("Duplicate")}{" "}
+                          </Button>
+                        )}
                       <Button
-                        key={s}
-                        onClick={() =>
-                          act(`documents/${selected.id}/status`, { status: s })
-                        }
+                        onClick={async () => {
+                          try {
+                            const blob = await api(
+                              `documents/${documentQuery.data.id}/pdf`,
+                            );
+                            const a = document.createElement("a");
+                            a.href = URL.createObjectURL(blob);
+                            a.download = `${documentQuery.data.number}.pdf`;
+                            a.click();
+                            URL.revokeObjectURL(a.href);
+                          } catch (e) {
+                            setFormError((e as Error).message);
+                          }
+                        }}
                       >
-                        {t(titleCase(s))}
+                        <Download size={15} /> {t("Download PDF")}{" "}
                       </Button>
-                    ))}
-                {selected.kind === "ORDER" &&
-                  selected.status === "DRAFT" &&
-                  can(role, "sales:write") && (
-                    <Button
-                      className="primary"
-                      onClick={() =>
-                        act(`documents/${selected.id}/status`, {
-                          status: "CONFIRMED",
-                        })
-                      }
-                    >
-                      {" "}
-                      {t("Confirm order")}{" "}
-                    </Button>
-                  )}
-                {selected.kind === "INVOICE" &&
-                  selected.status === "DRAFT" &&
-                  can(role, "finance:write") && (
-                    <Button
-                      className="primary"
-                      onClick={() =>
-                        act(`documents/${selected.id}/status`, {
-                          status: "ISSUED",
-                        })
-                      }
-                    >
-                      {" "}
-                      {t("Issue invoice")}{" "}
-                    </Button>
-                  )}
-                {selected.kind === "QUOTATION" &&
-                  selected.status === "ACCEPTED" &&
-                  can(role, "sales:write") && (
-                    <Button
-                      className="primary"
-                      onClick={() =>
-                        act(`documents/${selected.id}/convert`, {
-                          kind: "ORDER",
-                        })
-                      }
-                    >
-                      {" "}
-                      {t("Convert to sales order")}{" "}
-                    </Button>
-                  )}
-                {selected.kind === "ORDER" &&
-                  [
-                    "CONFIRMED",
-                    "RESERVED",
-                    "PROCESSING",
-                    "FULFILLED",
-                    "PARTIALLY_FULFILLED",
-                  ].includes(selected.status) &&
-                  can(role, "finance:write") && (
-                    <Button
-                      onClick={() =>
-                        act(`documents/${selected.id}/convert`, {
-                          kind: "INVOICE",
-                        })
-                      }
-                    >
-                      {" "}
-                      {t("Create invoice")}{" "}
-                    </Button>
-                  )}
-                {selected.kind === "QUOTATION" && can(role, "sales:write") && (
-                  <Button
-                    onClick={() =>
-                      act(`documents/${selected.id}/duplicate`, {})
-                    }
-                  >
-                    {" "}
-                    {t("Duplicate")}{" "}
-                  </Button>
-                )}
-                <Button
-                  onClick={async () => {
-                    try {
-                      const blob = await api(`documents/${selected.id}/pdf`);
-                      const a = document.createElement("a");
-                      a.href = URL.createObjectURL(blob);
-                      a.download = `${selected.number}.pdf`;
-                      a.click();
-                      URL.revokeObjectURL(a.href);
-                    } catch (e) {
-                      setFormError((e as Error).message);
-                    }
-                  }}
-                >
-                  <Download size={15} /> {t("Download PDF")}{" "}
-                </Button>
-              </div>
-              {((selected.kind === "ORDER" &&
-                [
-                  "CONFIRMED",
-                  "RESERVED",
-                  "PROCESSING",
-                  "PARTIALLY_FULFILLED",
-                ].includes(selected.status) &&
-                can(role, "inventory:write")) ||
-                (selected.kind === "PURCHASE" &&
-                  ["APPROVED", "SENT", "PARTIALLY_RECEIVED"].includes(
-                    selected.status,
-                  ) &&
-                  can(role, "purchase:write"))) && (
-                <form
-                  className="inline-operation"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const f = new FormData(e.currentTarget),
-                      warehouseId = String(f.get("warehouseId"));
-                    if (
-                      selected.kind === "ORDER" &&
-                      selected.status === "CONFIRMED"
-                    )
-                      await act(`orders/${selected.id}/reserve`, {
-                        warehouseId,
-                      });
-                    else {
-                      const lines = selected.lines
-                        .filter((l: any) => l.productId)
-                        .map((l: any, i: number) => ({
-                          productId: l.productId,
-                          quantity: String(f.get(`qty${i}`)),
-                        }))
-                        .filter((l: any) => Number(l.quantity) > 0);
-                      await act(
-                        `${selected.kind === "ORDER" ? "orders" : "purchases"}/${selected.id}/${selected.kind === "ORDER" ? "fulfill" : "receive"}`,
-                        {
-                          warehouseId,
-                          lines,
-                          idempotencyKey: crypto.randomUUID(),
-                        },
-                      );
-                    }
-                  }}
-                >
-                  <h3>
-                    {selected.kind === "PURCHASE"
-                      ? t("Receive materials")
-                      : selected.status === "CONFIRMED"
-                        ? t("Reserve stock")
-                        : t("Fulfill order")}
-                  </h3>
-                  <label>
-                    {" "}
-                    {t("Warehouse")}{" "}
-                    <select name="warehouseId">
-                      {lookups.warehouses?.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name === "Main warehouse"
-                            ? t("Main warehouse")
-                            : w.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {selected.status !== "CONFIRMED" &&
-                    selected.lines
-                      .filter((l: any) => l.productId)
-                      .map((l: any, i: number) => (
-                        <label key={i}>
-                          {l.description} {t("· quantity")}{" "}
-                          <input
-                            type="number"
-                            name={`qty${i}`}
-                            defaultValue={l.quantity}
-                            min="0"
-                            step="0.0001"
-                          />
-                        </label>
-                      ))}
-                  <Button className="primary mt">
-                    {" "}
-                    {t("Confirm stock operation")}{" "}
-                  </Button>
-                </form>
+                    </div>
+                    {documentQuery.data.stockProgress.length > 0 &&
+                      ((documentQuery.data.kind === "ORDER" &&
+                        [
+                          "CONFIRMED",
+                          "RESERVED",
+                          "PROCESSING",
+                          "PARTIALLY_FULFILLED",
+                        ].includes(documentQuery.data.status) &&
+                        can(role, "inventory:write")) ||
+                        (documentQuery.data.kind === "PURCHASE" &&
+                          ["APPROVED", "SENT", "PARTIALLY_RECEIVED"].includes(
+                            documentQuery.data.status,
+                          ) &&
+                          can(role, "purchase:write"))) && (
+                        <StockOperation
+                          key={documentQuery.data.id}
+                          document={documentQuery.data}
+                          api={api}
+                          done={done}
+                        />
+                      )}
+                    {documentQuery.data.kind === "INVOICE" &&
+                      ["ISSUED", "PARTIALLY_PAID"].includes(
+                        documentQuery.data.status,
+                      ) &&
+                      can(role, "finance:write") && (
+                        <form
+                          className="inline-operation"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const f = new FormData(e.currentTarget);
+                            act("payments", {
+                              invoiceId: documentQuery.data.id,
+                              amount: f.get("amount"),
+                              reference: f.get("reference"),
+                              method: "BANK",
+                              idempotencyKey: crypto.randomUUID(),
+                            });
+                          }}
+                        >
+                          <h3>{t("Record payment")}</h3>
+                          <p>
+                            {t("Paid:")} {money(documentQuery.data.paid)}
+                          </p>
+                          <label>
+                            {" "}
+                            {t("Amount")}{" "}
+                            <input
+                              name="amount"
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              required
+                            />
+                          </label>
+                          <label>
+                            {" "}
+                            {t("Bank reference")}{" "}
+                            <input name="reference" required />
+                          </label>
+                          <Button className="primary mt">
+                            {t("Confirm payment")}
+                          </Button>
+                        </form>
+                      )}
+                    {formError && <p className="error">{t(formError)}</p>}
+                  </>
+                )
               )}
-              {selected.kind === "INVOICE" &&
-                ["ISSUED", "PARTIALLY_PAID"].includes(selected.status) &&
-                can(role, "finance:write") && (
-                  <form
-                    className="inline-operation"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const f = new FormData(e.currentTarget);
-                      act("payments", {
-                        invoiceId: selected.id,
-                        amount: f.get("amount"),
-                        reference: f.get("reference"),
-                        method: "BANK",
-                        idempotencyKey: crypto.randomUUID(),
-                      });
-                    }}
-                  >
-                    <h3>{t("Record payment")}</h3>
-                    <p>
-                      {t("Paid:")} {money(selected.paid)}
-                    </p>
-                    <label>
-                      {" "}
-                      {t("Amount")}{" "}
-                      <input
-                        name="amount"
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        required
-                      />
-                    </label>
-                    <label>
-                      {" "}
-                      {t("Bank reference")} <input name="reference" required />
-                    </label>
-                    <Button className="primary mt">
-                      {t("Confirm payment")}
-                    </Button>
-                  </form>
-                )}
-              {formError && <p className="error">{t(formError)}</p>}
             </>
           ) : (
             <>
@@ -2450,8 +2546,10 @@ function Application() {
                       className="primary"
                       disabled={!!selected.extraction && !selected.reviewed}
                       onClick={() => {
-                        setView("quotations");
-                        setModal("create");
+                        navigate("quotations", {
+                          modal: "create",
+                          record: selected,
+                        });
                       }}
                     >
                       {" "}

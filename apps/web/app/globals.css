@@ -1209,6 +1209,27 @@ td:first-child {
   }
 }
 @media (max-width: 760px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  .btn,
+  .text-button,
+  .auth-switch button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .text-button,
+  .auth-switch button {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px;
+  }
+  .global-search {
+    min-height: 44px;
+    min-width: 44px;
+  }
   .app,
   .collapsed {
     --sidebar: 0px;
@@ -1236,10 +1257,16 @@ td:first-child {
   }
   .global-header {
     padding: 0 14px;
-    height: 58px;
+    min-height: 58px;
+    height: auto;
+    gap: 8px;
   }
   .header-tools {
     gap: 2px;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .quick-create span,
   .global-search kbd {
@@ -1294,6 +1321,14 @@ td:first-child {
   }
   .filter-bar {
     padding: 14px;
+    flex-wrap: wrap;
+  }
+  .filter-bar .search-field {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .filter-bar .actions {
+    flex-wrap: wrap;
   }
   .filter-bar .result-count {
     display: none;

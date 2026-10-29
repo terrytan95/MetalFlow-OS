@@ -161,7 +161,22 @@ await a.call(`orders/${order.id}/fulfill`, {
 const invoice = await a.call(`documents/${order.id}/convert`, {
   kind: "INVOICE",
 });
+await a.call(
+  `documents/${invoice.id}/terms`,
+  {
+    dueDate: new Date(Date.now() - 120 * 86400000).toISOString(),
+    notes: "QA overdue collection terms",
+  },
+  "PATCH",
+);
 await a.call(`documents/${invoice.id}/status`, { status: "ISSUED" });
+assert.equal(
+  (await a.call("analytics")).aging.find(
+    (bucket: any) => bucket.label === "90+ days overdue",
+  ).amount,
+  "209.00",
+);
+await a.call(`documents/${invoice.id}/terms`, { dueDate: null }, "PATCH", 409);
 const key = randomUUID(),
   payment = {
     invoiceId: invoice.id,

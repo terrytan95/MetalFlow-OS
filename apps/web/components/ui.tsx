@@ -2,7 +2,13 @@
 import { useI18n } from "../lib/i18n";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import type { ReactNode, ButtonHTMLAttributes } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type ButtonHTMLAttributes,
+} from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 export function cn(...v: Parameters<typeof clsx>) {
@@ -13,6 +19,10 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button className={cn("btn", className)} {...props} />;
+}
+export function confirmDialogDiscard(t: (text: string) => string) {
+  const dialog = document.querySelector('[role="dialog"][data-dirty="true"]');
+  return !dialog || window.confirm(t("Discard unsaved changes?"));
 }
 export function Modal({
   open,
@@ -30,12 +40,37 @@ export function Modal({
   translateTitle?: boolean;
 }) {
   const { t } = useI18n();
+  const [dirty, setDirty] = useState(false);
+  const content = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) setDirty(false);
+    const unload = (event: BeforeUnloadEvent) => {
+      if (!open || !content.current?.querySelector("form") || !dirty) return;
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => window.removeEventListener("beforeunload", unload);
+  }, [open, dirty]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(v) => {
+        if (!v && confirmDialogDiscard(t)) onClose();
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
         <Dialog.Content
+          ref={content}
+          data-dirty={dirty}
+          onChangeCapture={(event) => {
+            if ((event.target as HTMLElement).closest("form")) setDirty(true);
+          }}
+          onClickCapture={(event) => {
+            if ((event.target as HTMLElement).closest("[data-draft-change]"))
+              setDirty(true);
+          }}
           className={cn("dialog", wide && "wide")}
           aria-describedby={undefined}
         >
