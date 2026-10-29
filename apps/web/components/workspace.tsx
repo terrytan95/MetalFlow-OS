@@ -127,6 +127,7 @@ function Application() {
     [organization, setOrganization] = useState(""),
     [theme, setTheme] = useState("light"),
     [colorPalette, setColorPalette] = useState<PaletteId>("foundry"),
+    [textSize, setTextSize] = useState("normal"),
     [preferencesLoaded, setPreferencesLoaded] = useState(false),
     [collapsed, setCollapsed] = useState(false),
     [mobile, setMobile] = useState(false),
@@ -257,6 +258,9 @@ function Application() {
     const savedPalette = localStorage.getItem("metalflow.palette");
     if (palettes.some((p) => p.id === savedPalette))
       setColorPalette(savedPalette as PaletteId);
+    const savedTextSize = localStorage.getItem("metalflow.textSize");
+    if (["small", "normal", "large", "xlarge"].includes(savedTextSize || ""))
+      setTextSize(savedTextSize as string);
     setPreferencesLoaded(true);
     setLocale(localStorage.getItem("metalflow.locale") === "zh" ? "zh" : "en");
     setCollapsed(localStorage.getItem("metalflow.collapsed") === "true");
@@ -268,11 +272,13 @@ function Application() {
     if (!preferencesLoaded) return;
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.palette = colorPalette;
+    document.documentElement.dataset.textSize = textSize;
     localStorage.setItem("metalflow.palette", colorPalette);
+    localStorage.setItem("metalflow.textSize", textSize);
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
     localStorage.setItem("metalflow.theme", theme);
     localStorage.setItem("metalflow.locale", locale);
-  }, [theme, locale, colorPalette, preferencesLoaded]);
+  }, [theme, locale, colorPalette, textSize, preferencesLoaded]);
   const membership =
     me.data?.memberships?.find((m: any) => m.organizationId === organization) ||
     me.data?.memberships?.[0];
@@ -1330,6 +1336,33 @@ function Application() {
                 </div>
                 <Button className="primary mt">{t("Save settings")}</Button>
               </form>
+              <div className="settings-section">
+                <h3>{locale === "zh" ? "页面文本大小" : t("Page text size")}</h3>
+                <p className="muted">
+                  {locale === "zh"
+                    ? "调节工作区界面的文字与信息显示字号，偏好将自动保存在当前浏览器。"
+                    : t(
+                        "Adjust the font and reading size for your workspace in this browser.",
+                      )}
+                </p>
+                <div className="appearance-mode mt">
+                  {[
+                    { id: "small", en: "Small", zh: "小号", desc: "90%" },
+                    { id: "normal", en: "Standard", zh: "标准", desc: "100%" },
+                    { id: "large", en: "Large", zh: "大号", desc: "110%" },
+                    { id: "xlarge", en: "Extra Large", zh: "特大", desc: "120%" },
+                  ].map((s) => (
+                    <Button
+                      key={s.id}
+                      type="button"
+                      aria-pressed={textSize === s.id}
+                      onClick={() => setTextSize(s.id)}
+                    >
+                      {locale === "zh" ? s.zh : s.en} ({s.desc})
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <FileSettings api={api} organizationId={organization} />
               <AIProviderSettings
                 api={api}
@@ -1797,6 +1830,26 @@ function Application() {
             <Moon size={16} />
             {locale === "zh" ? "深色" : t("Dark")}
           </Button>
+        </div>
+        <div className="appearance-section">
+          <strong>{locale === "zh" ? "页面文本大小" : t("Page text size")}</strong>
+          <div className="appearance-mode mt">
+            {[
+              { id: "small", en: "Small", zh: "小号", desc: "90%" },
+              { id: "normal", en: "Standard", zh: "标准", desc: "100%" },
+              { id: "large", en: "Large", zh: "大号", desc: "110%" },
+              { id: "xlarge", en: "Extra Large", zh: "特大", desc: "120%" },
+            ].map((s) => (
+              <Button
+                key={s.id}
+                type="button"
+                aria-pressed={textSize === s.id}
+                onClick={() => setTextSize(s.id)}
+              >
+                {locale === "zh" ? s.zh : s.en} ({s.desc})
+              </Button>
+            ))}
+          </div>
         </div>
         <fieldset className="theme-options" aria-label={t("Color palette")}>
           {palettes.map((p) => (
