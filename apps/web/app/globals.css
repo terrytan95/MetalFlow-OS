@@ -2426,9 +2426,11 @@ html[lang^="zh"] .page-heading p {
 .chat-layout {
   display: flex;
   gap: 16px;
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  height: min(840px, calc(100vh - 140px));
+  height: calc(100dvh - 200px);
+  min-height: 540px;
 }
 .chat-sidebar {
   width: 250px;
@@ -2439,6 +2441,7 @@ html[lang^="zh"] .page-heading p {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  height: 100%;
   overflow: hidden;
 }
 .chat-sidebar-header {
@@ -3147,10 +3150,15 @@ html[lang^="zh"] .page-heading p {
   justify-content: flex-end;
   gap: 10px;
 }
+main[data-view="design"] .app-footer,
+main[data-view="assistant"] .app-footer {
+  margin-top: 14px;
+}
 @media (max-width: 768px) {
   .chat-layout {
     position: relative;
-    height: calc(100vh - 120px);
+    height: calc(100dvh - 160px);
+    min-height: 480px;
   }
   .chat-sidebar {
     position: absolute;
