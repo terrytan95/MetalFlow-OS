@@ -1,4 +1,5 @@
 "use client";
+import { AIProviderSettings } from "./ai-settings";
 import { Importer } from "./importer";
 import { palettes, type PaletteId } from "./themes";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -171,7 +172,7 @@ function Application() {
     [organization],
   );
   const me = useQuery({
-    queryKey: ["me", refreshKey],
+    queryKey: ["me", organization, refreshKey],
     queryFn: () => api("me"),
   });
   useEffect(() => {
@@ -1080,17 +1081,11 @@ function Application() {
                 </div>
                 <Button className="primary mt">Save settings</Button>
               </form>
-              <h3 className="section-title">Integrations</h3>
-              <div className="record-row">
-                <span>OpenAI</span>
-                <Badge
-                  value={
-                    me.data.capabilities.ai
-                      ? "CONFIGURED"
-                      : "CONFIGURATION_REQUIRED"
-                  }
-                />
-              </div>
+              <AIProviderSettings
+                api={api}
+                organizationId={organization}
+                onChanged={() => refresh((v) => v + 1)}
+              />
               <div className="record-row">
                 <span>Email delivery</span>
                 <Badge
@@ -1102,9 +1097,8 @@ function Application() {
                 />
               </div>
               <p className="notice">
-                Secrets are configured by the server operator. This screen never
-                exposes API keys. Email verification and password reset delivery
-                require SMTP.
+                Email verification and password reset delivery require SMTP
+                configured by the server operator.
               </p>
               {formError && <p className="error">{formError}</p>}
             </section>

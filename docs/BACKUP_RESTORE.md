@@ -8,3 +8,5 @@ Optional daily schedule: `0 3 * * * cd /opt/metalflow/app && ./infrastructure/sc
 Restore is destructive: use an isolated Compose project to rehearse first. `CONFIRM_RESTORE=YES infrastructure/scripts/restore.sh /srv/metalflow/backups/TIMESTAMP`. Restore the matching .env and proxy configuration manually from config.tgz when recovering a new machine, then run the restore script. Database and uploads are replaced; services remain stopped on a restore failure for investigation.
 
 Verify organization counts, invoices, inventory balances, asset downloads and the health endpoint after restoration. Never restore production data into publicly accessible test workspaces.
+
+AI credentials additionally require the exact AI_KEY_ENCRYPTION_KEY from the configuration backup. Database restoration without it cannot decrypt stored provider keys. Preserve and protect the matching configuration; never generate a replacement master key as a restore step.

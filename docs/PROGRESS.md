@@ -44,3 +44,12 @@ Continue remaining master-spec features from IMPLEMENTATION_ROADMAP.md. Configur
 - Existing /fhr/ and /gex/ both returned 200 after following normal redirects.
 - Public repository visibility and main branch confirmed. Actions template remains inactive due credential scope; no CI run claimed.
 - Production database started empty; test and demo tenants were not seeded there.
+
+## AI provider / multi-key update (2026-10-29)
+- Added organization-admin settings for OpenAI and OpenAI-compatible Responses/Chat endpoints, configured text/image models, encrypted multiple keys, per-key request caps/token thresholds, health reset, enable/disable/delete and attempt history.
+- Added tenant-bound AES-GCM encryption, immutable endpoints, DNS/socket public-network checks, per-key leases, usage-aware selection and bounded key switching. Unknown-completion calls are not replayed. Output-validation failures retain reported usage.
+- Migration: 202610290006_ai_providers (provider/key/attempt tables).
+- Unit suite: 21 tests passed, including crypto, DNS rebinding rejection, routing and existing business calculations. Strict types, lint, production web build and dependency audit passed.
+- Dedicated mock-provider queue integration passed: 429/401/quota failover, usage caps, sixth-key fallback, no 5xx replay, malformed-output usage, interrupted jobs, concurrent lease, tenant isolation and no-secret readback.
+- All 4 browser E2E scenarios passed in 27.5 seconds, including AI settings and existing business/theme workflows. Queue integration rerun passed. Production rollout pending.
+- No real provider credential or paid API call used. Production master encryption key generated privately on VPS; no provider keys seeded in production.

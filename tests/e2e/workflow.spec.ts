@@ -18,9 +18,23 @@ test("business onboarding, customer inquiry, quote, order, stock and payment", a
   await page
     .getByLabel("Password", { exact: true })
     .fill(`E2E-${stamp}-strong-password`);
-  await page
-    .getByRole("button", { name: "Create account", exact: true })
-    .click();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/auth/sign-up/email") &&
+        r.request().method() === "POST",
+    );
+    await page
+      .getByRole("button", { name: "Create account", exact: true })
+      .click();
+    const result = await response;
+    if (result.status() !== 429) break;
+    const seconds = Math.min(
+      60,
+      Math.max(1, Number(result.headers()["retry-after"]) || 11),
+    );
+    await page.waitForTimeout(seconds * 1000);
+  }
   await expect(
     page.getByRole("heading", { name: "Make it your workspace." }),
   ).toBeVisible();

@@ -19,7 +19,7 @@ Live: [terrytan.dev/metalflow](https://terrytan.dev/metalflow)
 - Manage projects, task boards, expenses and approved budget changes.
 - Upload protected drawings, record verified takeoffs and export BOMs.
 - Issue invoices, record idempotent partial payments and report real operational metrics.
-- Optional async AI inquiry extraction, document assistance and interior concepts; disabled until configured.
+- Organization-managed OpenAI/compatible providers, encrypted multi-key pools, usage-aware rotation, async inquiry extraction, document assistance and interior concepts.
 
 This is an initial operational release. It does **not** implement every feature in the master specification. See [the acceptance matrix](docs/IMPLEMENTATION_ROADMAP.md) and [verified progress](docs/PROGRESS.md). Native CAD, 2D nesting, full accounting, custom roles and complete bilingual forms are not advertised as complete.
 
