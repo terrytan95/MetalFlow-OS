@@ -15,6 +15,7 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
 
   const [mode, setMode] = useState("signin"),
     [error, setError] = useState(""),
+    [success, setSuccess] = useState(""),
     [busy, setBusy] = useState(false);
   return (
     <div className="auth-screen">
@@ -76,13 +77,18 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
           <p className="muted">
             {mode === "signup"
               ? t("Set up your organization in a few simple steps.")
-              : t("Sign in to keep your operations moving.")}
+              : mode === "reset"
+                ? t(
+                    "Enter your email address to request a password reset link.",
+                  )
+                : t("Sign in to keep your operations moving.")}
           </p>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
               setBusy(true);
               setError("");
+              setSuccess("");
               try {
                 const form = new FormData(e.currentTarget),
                   email = String(form.get("email")),
@@ -101,7 +107,7 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
                       : { email, password },
                 );
                 if (mode === "reset")
-                  setError(
+                  setSuccess(
                     "If email delivery is configured and the account exists, a reset link will be sent.",
                   );
                 else done();
@@ -151,6 +157,11 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
                 {t(error)}
               </p>
             )}
+            {success && (
+              <p className="notice" role="status">
+                {t(success)}
+              </p>
+            )}
             <Button className="primary full mt" disabled={busy}>
               {busy
                 ? t("Please wait…")
@@ -170,6 +181,7 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
               onClick={() => {
                 setMode(mode === "signup" ? "signin" : "signup");
                 setError("");
+                setSuccess("");
               }}
             >
               {mode === "signup" ? t("Sign in") : t("Create an account")}
@@ -179,6 +191,18 @@ export function AuthScreen({ api, done }: { api: API; done: () => void }) {
             <button className="text-button" onClick={() => setMode("reset")}>
               {" "}
               {t("Forgot password?")}{" "}
+            </button>
+          )}
+          {mode === "reset" && (
+            <button
+              className="text-button"
+              onClick={() => {
+                setMode("signin");
+                setError("");
+                setSuccess("");
+              }}
+            >
+              {t("Back to sign in")}
             </button>
           )}
         </div>

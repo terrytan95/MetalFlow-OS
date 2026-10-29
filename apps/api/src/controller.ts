@@ -5,7 +5,6 @@ import {
   capabilities,
   resolveProvider,
 } from "../../../packages/ai/src/pool.js";
-import { snapshotCost } from "./costs.js";
 import { importRecords } from "./imports.js";
 import {
   Body,
@@ -45,12 +44,13 @@ import {
   can,
   cutting,
   roles,
-  totals,
   documentSchema,
   type Line,
+  transitionPermission,
 } from "../../../packages/shared/src/domain.js";
 import { context, session, owned, serial, audit, json } from "./context.js";
 import { resources, schemas, inviteSchema } from "./resources.js";
+import { checkDocumentRead, documentDetails } from "./document-details.js";
 import {
   createDocument,
   shortagePurchase,
@@ -61,6 +61,8 @@ import {
   fulfill,
   recordPayment,
   receive,
+  updateInvoiceTerms,
+  reviseDocument,
 } from "./commerce.js";
 const queue = new Queue("metalflow-ai", {
   connection: { url: process.env.REDIS_URL || "redis://127.0.0.1:6379" },
@@ -291,14 +293,7 @@ export class AppController {
     const kind = z
       .enum(["QUOTATION", "ORDER", "PURCHASE", "INVOICE"])
       .parse(q.kind);
-    if (kind === "PURCHASE" && !can(c.role, "cost:read"))
-      throw new ForbiddenException();
-    if (
-      kind === "INVOICE" &&
-      !can(c.role, "finance:read") &&
-      !can(c.role, "sales:write")
-    )
-      throw new ForbiddenException();
+    checkDocumentRead(c, kind);
     const where = {
       organizationId: c.organizationId,
       kind,
@@ -317,6 +312,19 @@ export class AppController {
       db.document.count({ where }),
     ]);
     return { items, total, page: p.page };
+  }
+  @Get("documents/:id") async documentDetail(
+    @Req() req: Request,
+    @Param("id") id: string,
+  ) {
+    return documentDetails(await context(req), id);
+  }
+  @Patch("documents/:id/terms") async invoiceTerms(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() raw: unknown,
+  ) {
+    return updateInvoiceTerms(await context(req, "finance:write"), id, raw);
   }
   @Post("documents") async createDoc(
     @Req() req: Request,
@@ -349,62 +357,7 @@ export class AppController {
             ? "finance:write"
             : "sales:write",
       );
-    return serial(async (tx) => {
-      const d = await tx.document.findFirst({
-        where: { id, organizationId: c.organizationId },
-      });
-      if (!d || d.status !== "DRAFT" || d.kind !== x.kind || d.sourceId)
-        throw new ConflictException("Only original drafts can be edited");
-      const products = await tx.product.findMany({
-        where: {
-          organizationId: c.organizationId,
-          id: {
-            in: [
-              ...new Set(
-                x.lines.flatMap((l) => (l.productId ? [l.productId] : [])),
-              ),
-            ],
-          },
-        },
-        select: { id: true, unit: true },
-      });
-      const byId = new Map(products.map((p) => [p.id, p]));
-      for (const l of x.lines)
-        if (l.productId && byId.get(l.productId)?.unit !== l.unit)
-          throw new BadRequestException("Invalid product or unit");
-      if (d.inquiryId && x.customerId !== d.customerId)
-        throw new ConflictException(
-          "An inquiry-linked draft cannot change customer",
-        );
-      if (x.customerId) await owned(tx, "customer", c, x.customerId);
-      if (x.supplierId) await owned(tx, "supplier", c, x.supplierId);
-      const updated = await tx.document.update({
-        where: { id },
-        data: {
-          customerId: x.customerId,
-          supplierId: x.supplierId,
-          lines: json(x.lines),
-          notes: x.notes,
-          ...totals(x.lines, x.discount, x.taxRate),
-          version: { increment: 1 },
-          validUntil: x.validUntil,
-          dueDate: x.dueDate,
-        },
-      });
-      if (x.kind !== "PURCHASE")
-        await snapshotCost(tx, c.organizationId, id, x.lines);
-      await tx.documentVersion.create({
-        data: {
-          organizationId: c.organizationId,
-          documentId: id,
-          version: updated.version,
-          snapshot: json(updated),
-          createdBy: c.userId,
-        },
-      });
-      await audit(tx, c, "document.revise", id);
-      return updated;
-    });
+    return reviseDocument(c, id, x);
   }
   @Post("documents/:id/status") async status(
     @Req() req: Request,
@@ -417,16 +370,7 @@ export class AppController {
       where: { id, organizationId: c.organizationId },
     });
     if (!d) throw new NotFoundException();
-    const permission =
-      d.kind === "PURCHASE"
-        ? status === "APPROVED"
-          ? "purchase:approve"
-          : "purchase:write"
-        : d.kind === "INVOICE"
-          ? "finance:write"
-          : status === "APPROVED"
-            ? "sales:approve"
-            : "sales:write";
+    const permission = transitionPermission(d.kind, status);
     if (!can(c.role, permission)) throw new ForbiddenException();
     return transition(c, id, status);
   }

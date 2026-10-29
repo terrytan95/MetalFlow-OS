@@ -1,6 +1,7 @@
 "use client";
 import { useI18n } from "../lib/i18n";
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -21,12 +22,14 @@ export function RecordsTable({
   onSelect,
   lookups,
   resource,
+  empty,
 }: {
   items: RecordData[];
   resource?: string;
   columns: string[];
   onSelect?: (record: RecordData) => void;
   lookups: Record<string, RecordData[]>;
+  empty?: ReactNode;
 }) {
   const { t, locale } = useI18n();
   const lookupById = useMemo(
@@ -87,7 +90,12 @@ export function RecordsTable({
     columns: defs,
     getCoreRowModel: getCoreRowModel(),
   });
-  if (!items.length) return <Empty />;
+  if (!items.length)
+    return (
+      empty ?? (
+        <Empty description={t("No records are available in this workspace.")} />
+      )
+    );
   return (
     <div className="table-scroll">
       <table>

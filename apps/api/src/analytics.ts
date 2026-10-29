@@ -54,7 +54,7 @@ export async function analyticsReport(c: Context, from: Date, to: Date) {
       Prisma.sql`SELECT to_char(date_trunc('day',"createdAt"),'YYYY-MM-DD') AS date,sum(subtotal-discount-CASE WHEN total>0 THEN credited*(subtotal-discount)/total ELSE 0 END)::text AS revenue FROM "Document" WHERE "organizationId"=${org} AND kind='INVOICE' AND status IN ${paidStatuses} AND "createdAt">=${from} AND "createdAt"<=${to} GROUP BY 1 ORDER BY 1`,
     ),
     db.$queryRaw<any[]>(
-      Prisma.sql`SELECT LEAST(3,GREATEST(0,FLOOR(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP-COALESCE("dueDate",CURRENT_TIMESTAMP)))/2592000)))::int AS bucket,COALESCE(sum(total-paid-credited),0)::text AS amount FROM "Document" WHERE "organizationId"=${org} AND kind='INVOICE' AND status IN ${paidStatuses} GROUP BY 1`,
+      Prisma.sql`SELECT CASE WHEN "dueDate" IS NULL THEN -1 WHEN "dueDate">=CURRENT_DATE THEN 0 WHEN "dueDate">=CURRENT_DATE-30 THEN 1 WHEN "dueDate">=CURRENT_DATE-60 THEN 2 WHEN "dueDate">=CURRENT_DATE-90 THEN 3 ELSE 4 END AS bucket,COALESCE(sum(total-paid-credited),0)::text AS amount FROM "Document" WHERE "organizationId"=${org} AND kind='INVOICE' AND status IN ${paidStatuses} GROUP BY 1`,
     ),
     db.$queryRaw<any[]>(
       Prisma.sql`SELECT d."customerId" AS id,COALESCE(c.name,d."customerId") AS name,sum(d.subtotal-d.discount-CASE WHEN d.total>0 THEN d.credited*(d.subtotal-d.discount)/d.total ELSE 0 END)::text AS revenue FROM "Document" d LEFT JOIN "Customer" c ON c.id=d."customerId" AND c."organizationId"=d."organizationId" WHERE d."organizationId"=${org} AND d.kind='INVOICE' AND d.status IN ${paidStatuses} AND d."createdAt">=${from} AND d."createdAt"<=${to} GROUP BY d."customerId",c.name ORDER BY sum(d.subtotal-d.discount-CASE WHEN d.total>0 THEN d.credited*(d.subtotal-d.discount)/d.total ELSE 0 END) DESC LIMIT 50`,
@@ -78,8 +78,15 @@ export async function analyticsReport(c: Context, from: Date, to: Date) {
     grossProfit: f.costComplete ? f.grossProfit : null,
     inventoryValuation: new Decimal(valuation[0].value).toFixed(2),
     trend: trend.map((r) => ({ ...r, revenue: Number(r.revenue) })),
-    aging: [0, 1, 2, 3].map((bucket) => ({
-      label: ["Current / 0–30", "31–60", "61–90", "90+"][bucket],
+    aging: [-1, 0, 1, 2, 3, 4].map((bucket) => ({
+      label: [
+        "Undated",
+        "Current",
+        "1–30 days overdue",
+        "31–60 days overdue",
+        "61–90 days overdue",
+        "90+ days overdue",
+      ][bucket + 1],
       amount: aging.find((r) => r.bucket === bucket)?.amount || "0.00",
     })),
     salesByCustomer: byCustomer,

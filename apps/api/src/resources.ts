@@ -72,7 +72,7 @@ export const schemas = {
       .default("NEW"),
     reviewed: z.boolean().default(false),
     extraction: z.record(z.string(), z.unknown()).optional(),
-    requestedDate: z.string().datetime().optional(),
+    requestedDate: z.string().datetime().nullish(),
   }),
   suppliers: z.object({
     name,
@@ -90,26 +90,26 @@ export const schemas = {
       .enum(["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED"])
       .default("PLANNING"),
     budget: amount,
-    dueDate: z.string().datetime().optional(),
+    dueDate: z.string().datetime().nullish(),
     notes: optional,
   }),
   tasks: z.object({
     name,
-    projectId: z.string().optional(),
+    projectId: z.string().min(1).nullish(),
     status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).default("TODO"),
-    assignedTo: z.string().optional(),
-    dueDate: z.string().datetime().optional(),
+    assignedTo: z.string().min(1).nullish(),
+    dueDate: z.string().datetime().nullish(),
   }),
   expenses: z.object({
     name,
-    projectId: z.string().optional(),
+    projectId: z.string().min(1).nullish(),
     category: name,
     amount: positive,
     date: z.string().datetime(),
   }),
   fabrication: z.object({
     name,
-    orderId: z.string().optional(),
+    orderId: z.string().min(1).nullish(),
     status: z
       .enum(["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
       .default("PLANNED"),
@@ -118,8 +118,8 @@ export const schemas = {
   }),
   takeoffs: z.object({
     name,
-    projectId: z.string().optional(),
-    fileId: z.string().optional(),
+    projectId: z.string().min(1).nullish(),
+    fileId: z.string().min(1).nullish(),
     scale: positive.default("1"),
     measurements: z
       .array(
