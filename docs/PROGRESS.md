@@ -32,7 +32,7 @@ Initial operational release. The full master specification is **not complete**; 
 Local source and isolated VPS test stack exist. Public repository: https://github.com/terrytan95/MetalFlow-OS. Production stack runs on the VPS with five applied migrations. HTTPS /metalflow returned 200; /metalflow/api/v1/health returned status=ok. Final visual-layout image update verified; source pushed to main. GitHub Actions is retained as an inactive template because the connected OAuth token lacks workflow scope.
 
 ## Remaining operational dependencies
-SMTP/email delivery, live AI credentials/models and independently recoverable off-VPS backups are not configured. No scheduled backup job was installed. No real customer data was seeded.
+SMTP/email delivery and independently recoverable off-VPS backups are not configured. AI credentials/models can now be configured per organization in Settings; no real provider credentials were supplied or used in this delivery. No scheduled backup job was installed. No real customer data was seeded.
 
 ## Next action
 Continue remaining master-spec features from IMPLEMENTATION_ROADMAP.md. Configure SMTP, dedicated AI models/credentials, and independent off-VPS backups before using irreplaceable customer data.
@@ -51,5 +51,5 @@ Continue remaining master-spec features from IMPLEMENTATION_ROADMAP.md. Configur
 - Migration: 202610290006_ai_providers (provider/key/attempt tables).
 - Unit suite: 21 tests passed, including crypto, DNS rebinding rejection, routing and existing business calculations. Strict types, lint, production web build and dependency audit passed.
 - Dedicated mock-provider queue integration passed: 429/401/quota failover, usage caps, sixth-key fallback, no 5xx replay, malformed-output usage, interrupted jobs, concurrent lease, tenant isolation and no-secret readback.
-- All 4 browser E2E scenarios passed in 27.5 seconds, including AI settings and existing business/theme workflows. Queue integration rerun passed. Production rollout pending.
+- All 4 browser E2E scenarios passed in 27.5 seconds, including AI settings and existing business/theme workflows. Queue integration rerun passed. PR #1 merged (e221cad); production migration and rollout verified.
 - No real provider credential or paid API call used. Production master encryption key generated privately on VPS; no provider keys seeded in production.
