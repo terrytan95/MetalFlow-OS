@@ -9,4 +9,5 @@ compose=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
 "${compose[@]}" run --rm --user root api sh -c 'mkdir -p /data/uploads && chown node:node /data/uploads'
 "${compose[@]}" run --rm api pnpm db:migrate
 "${compose[@]}" up -d --wait
+"${compose[@]}" exec -T reverse-proxy nginx -s reload || "${compose[@]}" restart reverse-proxy
 curl --fail --silent http://127.0.0.1:3410/metalflow/api/v1/health
