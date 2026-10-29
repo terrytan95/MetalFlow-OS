@@ -11,6 +11,8 @@
   --danger-bg: #fff1f0;
   --radius: 7px;
   --sidebar: 244px;
+  --scrollbar-thumb: var(--border);
+  --scrollbar-thumb-hover: var(--muted);
   --font:
     Inter, Geist, -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
@@ -25,6 +27,8 @@
   --soft: #203b2d;
   --danger: #ffaaa0;
   --danger-bg: #3b2524;
+  --scrollbar-thumb: color-mix(in srgb, var(--border) 75%, var(--accent));
+  --scrollbar-thumb-hover: var(--accent);
 }
 * {
   box-sizing: border-box;
@@ -34,6 +38,29 @@ body {
   font: 13px/1.5 var(--font);
   color: var(--text);
   background: var(--bg);
+}
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 button,
 input,
