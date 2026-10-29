@@ -109,3 +109,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 ## Page text size preference (2026-10-29)
 - Added page text size setting with four tiers (small 90%, standard 100%, large 110%, extra large 120%) available in both Organization Settings and Appearance modal.
 - Dynamically scales typography across body, headings, tables, labels and sidebar via `--text-scale` while preserving layout stability, mobile viewport fit, and local persistence via `metalflow.textSize`.
+
+## Morandi desaturation, notifications error handling & i18n (2026-10-29)
+- Reduced color saturation across all 13 Morandi themes to 0–15% for genuine muted tones while maintaining WCAG AA contrast compliance (>= 4.5:1) in both light and dark modes.
+- Handled fetch network exceptions gracefully in client API layer with localized feedback and added Retry action to the activity notifications modal.
+- Expanded audit action entity and status localization to cover all business documents (quotation, order, purchase, invoice, file, AI providers, API keys).

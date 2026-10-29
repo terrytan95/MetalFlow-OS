@@ -221,14 +221,23 @@ function Application() {
       };
       if (body && !(body instanceof FormData))
         headers["Content-Type"] = "application/json";
-      const res = await fetch(`/metalflow/api/v1/${route}`, {
-        method,
-        headers,
-        credentials: "same-origin",
-        ...(body
-          ? { body: body instanceof FormData ? body : JSON.stringify(body) }
-          : {}),
-      });
+      let res: Response;
+      try {
+        res = await fetch(`/metalflow/api/v1/${route}`, {
+          method,
+          headers,
+          credentials: "same-origin",
+          ...(body
+            ? { body: body instanceof FormData ? body : JSON.stringify(body) }
+            : {}),
+        });
+      } catch {
+        throw Error(
+          locale === "zh"
+            ? "网络连接失败，请检查网络或稍后重试"
+            : "Network connection failed. Please check your network and retry.",
+        );
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw Error(apiError(data, locale, res.status));
@@ -1948,7 +1957,15 @@ function Application() {
         {notifications.isPending ? (
           <p className="muted">{t("Loading activity…")}</p>
         ) : notifications.isError ? (
-          <p className="error">{t(notifications.error.message)}</p>
+          <div role="alert">
+            <p className="error">{t(notifications.error.message)}</p>
+            <Button
+              className="mt"
+              onClick={() => void notifications.refetch()}
+            >
+              {t("Retry")}
+            </Button>
+          </div>
         ) : notifications.data?.length ? (
           notifications.data.map((item: RecordData) => (
             <div key={item.id} className="activity-row">
