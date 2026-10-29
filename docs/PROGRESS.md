@@ -114,3 +114,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Reduced color saturation across all 13 Morandi themes to 0–15% for genuine muted tones while maintaining WCAG AA contrast compliance (>= 4.5:1) in both light and dark modes.
 - Handled fetch network exceptions gracefully in client API layer with localized feedback and added Retry action to the activity notifications modal.
 - Expanded audit action entity and status localization to cover all business documents (quotation, order, purchase, invoice, file, AI providers, API keys).
+
+## Comprehensive UI polish, whitespace optimization & humanized Chinese copy (2026-10-29)
+- Applied make-interfaces-feel-better principles: root antialiasing, text-wrap balance for headings and pretty for body/descriptions, multi-layer subtle elevation shadow tokens, concentric radii, and smooth hover lifts.
+- Compacted layout whitespace: streamlined header height from 68px to 54px, main padding to 20px 26px, tighter metric cards (15px 17px padding, 25px font), and high-density enterprise table cells (11px 15px).
+- Humanized Chinese localization with humanizer-zh guidelines: eliminated robotic and hollow marketing phrasing across notifications, workspace headlines, role explanations, token limits, and document workflow confirmations.

@@ -853,7 +853,7 @@ function Application() {
               <p>
                 {view === "dashboard"
                   ? locale === "zh"
-                    ? "每一个询价、订单和项目，尽在掌握。"
+                    ? "实时汇总询价、订单与项目执行进度。"
                     : t("Every inquiry, order and project. Moving together.")
                   : t(
                       config[view]?.description ||
@@ -1349,7 +1349,7 @@ function Application() {
                 <h3>{locale === "zh" ? "页面文本大小" : t("Page text size")}</h3>
                 <p className="muted">
                   {locale === "zh"
-                    ? "调节工作区界面的文字与信息显示字号，偏好将自动保存在当前浏览器。"
+                    ? "自适应调节工作区字号与阅读密度，偏好设置自动保存在本地。"
                     : t(
                         "Adjust the font and reading size for your workspace in this browser.",
                       )}
@@ -1819,7 +1819,7 @@ function Application() {
       >
         <p className="muted">
           {locale === "zh"
-            ? "低饱和色彩，清晰的数据层次。配色与明暗模式可独立选择。"
+            ? "采用低饱和莫兰迪色调，可按需切换配色与明暗外观。"
             : t(
                 "Muted colors, clear information. Choose a palette and light or dark mode independently.",
               )}
@@ -1889,7 +1889,7 @@ function Application() {
           </strong>
           <p>
             {locale === "zh"
-              ? "主题将应用于所有模块，并在此浏览器自动保存。"
+              ? "设置将应用于所有模块，并在当前浏览器自动保存。"
               : t(
                   "Applies across every module and saves automatically in this browser.",
                 )}
