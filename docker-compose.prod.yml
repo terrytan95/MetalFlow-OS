@@ -1,0 +1,11 @@
+services:
+  api:
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }
+  web:
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }
+  worker:
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }
+  postgres:
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }
+  redis:
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }

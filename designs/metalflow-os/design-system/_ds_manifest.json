@@ -1,0 +1,160 @@
+{
+  "namespace": "DesignSystem_d555b8",
+  "components": [
+    {
+      "name": "Button",
+      "sourcePath": "components/core/Button.jsx",
+      "props": [
+        {
+          "name": "children",
+          "type": "ReactNode"
+        },
+        {
+          "name": "primary",
+          "type": "boolean"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "MetricCard",
+      "sourcePath": "components/core/MetricCard.jsx",
+      "props": [
+        {
+          "name": "label",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "startingPoints": [],
+  "cards": [
+    {
+      "path": "foundations.html",
+      "group": "Foundations",
+      "viewport": "700x240",
+      "subtitle": "",
+      "name": "Tokens and controls"
+    }
+  ],
+  "globalCssPaths": [
+    "tokens/foundation.css",
+    "styles.css"
+  ],
+  "tokens": [
+    {
+      "name": "--bg",
+      "value": "#f6f8f7",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--surface",
+      "value": "#fff",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--text",
+      "value": "#172e2a",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--muted",
+      "value": "#61736f",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--border",
+      "value": "#dce5e1",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--accent",
+      "value": "#176451",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--soft",
+      "value": "#e6f2ed",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--radius",
+      "value": "7px",
+      "kind": "spacing",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--font",
+      "value": "Inter,ui-sans-serif,system-ui,sans-serif",
+      "kind": "font",
+      "definedIn": "tokens/foundation.css",
+      "annotation": "font"
+    },
+    {
+      "name": "--bg",
+      "value": "#101c19",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--surface",
+      "value": "#182622",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--text",
+      "value": "#ecf4f0",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--muted",
+      "value": "#a1b4ac",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--border",
+      "value": "#31463d",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--accent",
+      "value": "#285a91",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--soft",
+      "value": "#e8f0fa",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    },
+    {
+      "name": "--soft",
+      "value": "#f7efdf",
+      "kind": "color",
+      "definedIn": "tokens/foundation.css"
+    }
+  ],
+  "themes": [],
+  "fonts": [],
+  "brandFonts": [],
+  "source": "spa"
+}

@@ -1,0 +1,12 @@
+# Architecture decisions
+- Modular monolith, not microservices. One transactional PostgreSQL database; separate web/API/queue process boundaries.
+- Unified Document + immutable DocumentVersion represents quotations, orders, purchases and invoices. Kind-specific state transitions guard workflows. JSON line snapshots preserve commercial history; product references are validated by service logic. Money remains decimal strings inside snapshots.
+- Better Auth supplies password hashing, session lifecycle and auth endpoints. Organization membership is independently verified for every business request.
+- Fixed default roles first. Custom role editor and platform super-admin are not implemented yet; do not imply otherwise.
+- Default currency is organization-wide. No cross-currency conversion without an explicit exchange-rate model.
+- Local protected storage for first deployment; storage root configured via environment.
+- Existing VPS Nginx handles domain/TLS. MetalFlow reverse proxy binds loopback only. No database/cache public ports.
+- AI is configuration-required until a dedicated key and account-supported model IDs are provided. No other project credentials are reused.
+- Design skill installed project-local via documented npx skills CLI; no global skill mutation. Foundry direction chosen autonomously per user instruction, not claimed as human-approved.
+- Integration review found and fixed: authentication base URL under a subpath; JSONB property-order comparison in receipt idempotency; hidden detail rendering after inquiry-to-quote transition; Docker DNS caching after container recreation; TTC font face selection and PDF stream failure handling; product-cost response redaction; upload guard ordering; fulfillment replay protection; invoiced-order cancellation; sub-cent discount consistency; mismatched document party references. These are recorded because regression tests protect the resulting behavior.
+- Appearance adds independent palette and luminance preferences: Foundry teal, Morandi sage, mist blue, dusty rose, oat/linen, lavender gray, and monochrome. CSS semantic tokens cover navigation, controls, charts and auth surfaces. Both choices persist in browser storage. Error semantics remain distinct from decorative palette colors.

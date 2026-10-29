@@ -1,0 +1,10 @@
+services:
+  api:
+    environment:
+      PUBLIC_URL: http://127.0.0.1:3411/metalflow
+      REQUIRE_EMAIL_VERIFICATION: 'false'
+  worker:
+    environment:
+      PUBLIC_URL: http://127.0.0.1:3411/metalflow
+  reverse-proxy:
+    ports: !override ['127.0.0.1:3411:80']

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "baoyu-design": {
+      "source": "JimLiu/baoyu-design",
+      "sourceType": "github",
+      "skillPath": "skills/baoyu-design/SKILL.md",
+      "computedHash": "a1219ad19b055e3530f7a38e486f2defbe79663467006962c76ce5c4951fb91b"
+    }
+  }
+}

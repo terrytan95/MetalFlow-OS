@@ -1,0 +1,155 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "index": {
+      "versions": [
+        {
+          "path": "customers/index.html",
+          "createdAt": "2026-10-29T11:45:40.451Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "settings/index.html",
+          "createdAt": "2026-10-29T11:45:40.488Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "ai-design/index.html",
+          "createdAt": "2026-10-29T11:45:40.562Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "takeoff/index.html",
+          "createdAt": "2026-10-29T11:45:40.601Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "inquiries/index.html",
+          "createdAt": "2026-10-29T11:45:40.640Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "projects/index.html",
+          "createdAt": "2026-10-29T11:45:40.725Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "dashboard/index.html",
+          "createdAt": "2026-10-29T11:45:40.824Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "fabrication/index.html",
+          "createdAt": "2026-10-29T11:45:41.009Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "procurement/index.html",
+          "createdAt": "2026-10-29T11:45:41.049Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "inventory/index.html",
+          "createdAt": "2026-10-29T11:45:41.089Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "finance/index.html",
+          "createdAt": "2026-10-29T11:45:41.161Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "quotations/index.html",
+          "createdAt": "2026-10-29T11:45:41.196Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "orders/index.html",
+          "createdAt": "2026-10-29T11:45:41.270Z",
+          "status": "needs-review"
+        },
+        {
+          "path": "analytics/index.html",
+          "createdAt": "2026-10-29T11:45:41.343Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "auth": {
+      "versions": [
+        {
+          "path": "settings/auth.html",
+          "createdAt": "2026-10-29T11:45:40.525Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "review": {
+      "versions": [
+        {
+          "path": "inquiries/review.html",
+          "createdAt": "2026-10-29T11:45:40.678Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "precision": {
+      "versions": [
+        {
+          "path": "dashboard/precision.html",
+          "createdAt": "2026-10-29T11:45:40.775Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "foundry": {
+      "versions": [
+        {
+          "path": "dashboard/foundry.html",
+          "createdAt": "2026-10-29T11:45:40.900Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "studio": {
+      "versions": [
+        {
+          "path": "dashboard/studio.html",
+          "createdAt": "2026-10-29T11:45:40.970Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "product-editor": {
+      "versions": [
+        {
+          "path": "inventory/product-editor.html",
+          "createdAt": "2026-10-29T11:45:41.126Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "editor": {
+      "versions": [
+        {
+          "path": "quotations/editor.html",
+          "createdAt": "2026-10-29T11:45:41.233Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "foundations": {
+      "versions": [
+        {
+          "path": "design-system/foundations.html",
+          "createdAt": "2026-10-29T11:45:41.308Z",
+          "status": "needs-review"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-10-29T11:45:40.451Z",
+  "updatedAt": "2026-10-29T11:45:41.344Z"
+}
