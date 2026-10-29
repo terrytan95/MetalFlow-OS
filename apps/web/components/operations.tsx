@@ -8,7 +8,8 @@ import {
 } from "../lib/localization";
 import { RecordDetails } from "./record-details";
 import { useI18n } from "../lib/i18n";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { marked } from "marked";
 import {
   Scissors,
   Sparkles,
@@ -192,6 +193,37 @@ export function Cutting({ api }: { api: API }) {
     </div>
   );
 }
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "")
+    .replace(/\son\w+=[^\s>]+/gi, "")
+    .replace(/javascript:[^"']*/gi, "");
+}
+export function MarkdownView({ content }: { content: string }) {
+  const html = useMemo(() => {
+    if (!content) return "";
+    try {
+      const parsed = marked.parse(content, {
+        async: false,
+        gfm: true,
+        breaks: true,
+      }) as string;
+      return sanitizeHtml(parsed);
+    } catch {
+      return content;
+    }
+  }, [content]);
+  return (
+    <div
+      className="markdown-body"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
 export function AIWorkspace({
   api,
   mode,
@@ -372,7 +404,7 @@ export function AIWorkspace({
                   {j.status === "SUCCEEDED" && (
                     <div className="chat-msg-content">
                       {j.result?.text && (
-                        <div className="chat-msg-text pre-wrap">{j.result.text}</div>
+                        <MarkdownView content={j.result.text} />
                       )}
                       {j.result?.fileId && (
                         <div className="chat-generated-image">
