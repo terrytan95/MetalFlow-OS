@@ -46,6 +46,8 @@ Demo seeding is explicit: set `DEMO_MODE=true`, `DEMO_EMAIL`, `DEMO_PASSWORD` an
 
 [baoyu-design](https://github.com/jimliu/baoyu-design) was installed and used for dashboard exploration, HTML prototypes, token compilation and design checks. Artifacts live in `designs/metalflow-os/`. Foundry is the selected neutral/teal direction. See `DESIGN_DECISION.md` for evaluation and tool compatibility notes.
 
+Theme selector: sign in, then use the palette icon in the global header. Palette and light/dark mode are saved independently.
+
 ## Documentation
 
 [Architecture](docs/ARCHITECTURE.md) · [Database](docs/DATABASE_SCHEMA.md) · [API](docs/API_REFERENCE.md) · [Security](docs/SECURITY.md) · [Tests](docs/TESTING.md) · [Backup and restore](docs/BACKUP_RESTORE.md) · [Roadmap](docs/IMPLEMENTATION_ROADMAP.md)

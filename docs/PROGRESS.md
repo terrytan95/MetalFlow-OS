@@ -29,10 +29,18 @@ Initial operational release. The full master specification is **not complete**; 
 - Backup/restore drill passed: a PostgreSQL-consistent dump restored into an isolated database; 54 commercial documents matched. Asset/config archives passed readability checks.
 
 ## Delivery status
-Local source and isolated VPS test stack exist. Public repository: https://github.com/terrytan95/MetalFlow-OS. Production stack runs on the VPS with five applied migrations. HTTPS /metalflow returned 200; /metalflow/api/v1/health returned status=ok. Final visual-layout image update verified; source push in progress. GitHub Actions is retained as an inactive template because the connected OAuth token lacks workflow scope.
+Local source and isolated VPS test stack exist. Public repository: https://github.com/terrytan95/MetalFlow-OS. Production stack runs on the VPS with five applied migrations. HTTPS /metalflow returned 200; /metalflow/api/v1/health returned status=ok. Final visual-layout image update verified; source pushed to main. GitHub Actions is retained as an inactive template because the connected OAuth token lacks workflow scope.
 
 ## Remaining operational dependencies
 SMTP/email delivery, live AI credentials/models and independently recoverable off-VPS backups are not configured. No scheduled backup job was installed. No real customer data was seeded.
 
 ## Next action
-Verify final theme layout, push reviewed source, validate production HTTPS/health and record the deployed commit.
+Continue remaining master-spec features from IMPLEMENTATION_ROADMAP.md. Configure SMTP, dedicated AI models/credentials, and independent off-VPS backups before using irreplaceable customer data.
+
+## Final verification (2026-10-29)
+- All 3 Playwright E2E scenarios passed in 12.5 seconds. Theme-only rerun after final card-layout correction passed in 3.0 seconds.
+- Palette combinations: seven palettes × light/dark. Measured body/muted/button contrast all >=4.5; palette choice survives reload.
+- Production browser login screen rendered with no document overflow at 796px viewport. HTTP page 200, health ok, anonymous /me 401.
+- Existing /fhr/ and /gex/ both returned 200 after following normal redirects.
+- Public repository visibility and main branch confirmed. Actions template remains inactive due credential scope; no CI run claimed.
+- Production database started empty; test and demo tenants were not seeded there.
