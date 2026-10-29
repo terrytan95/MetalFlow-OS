@@ -1,10 +1,10 @@
 "use client";
 import { enumLabel, formatNumber, fieldLabel } from "../lib/localization";
 import { useI18n } from "../lib/i18n";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { RecordSelect } from "./record-select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Camera, CheckCircle2 } from "lucide-react";
 import { Decimal } from "decimal.js";
 import { config, type RecordData, kinds } from "./data";
 import { Button } from "./ui";
@@ -51,9 +51,58 @@ export function ResourceForm({
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { isSubmitting, errors },
   } = useForm({ defaultValues: initial });
   const [error, setError] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrNotice, setOcrNotice] = useState("");
+  const ocrInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOcr = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setOcrLoading(true);
+    setOcrNotice("");
+    setError("");
+    try {
+      const form = new FormData();
+      form.set("file", f);
+      form.set("target", resource);
+      const res = await api("ai/extract", "POST", form);
+      const data = res.data;
+      if (data && typeof data === "object") {
+        for (const field of fields) {
+          const val =
+            data[field.key] ??
+            (field.key === "name"
+              ? data.customerName || data.supplierName || data.companyName
+              : field.key === "phone"
+                ? data.telephone || data.mobile
+                : field.key === "contact"
+                  ? data.contactPerson || data.person
+                  : field.key === "address"
+                    ? data.location || data.companyAddress
+                    : field.key === "notes"
+                      ? data.instructions || data.remark
+                      : undefined);
+          if (val !== undefined && val !== null) {
+            setValue(field.key, String(val), { shouldDirty: true });
+          } 
+        }
+        setOcrNotice(
+          t(
+            "Recognized data filled below. Please review and edit fields before saving.",
+          ),
+        );
+      }
+    } catch (err: any) {
+      setError((err as Error).message);
+    } finally {
+      setOcrLoading(false);
+      if (ocrInputRef.current) ocrInputRef.current.value = "";
+    }
+  };
   return (
     <form
       onSubmit={handleSubmit(async (values) => {
@@ -96,6 +145,31 @@ export function ResourceForm({
         }
       })}
     >
+      <div className="ocr-bar">
+        <label className="ocr-btn">
+          <Camera size={14} />
+          <span>
+            {ocrLoading ? t("Recognizing document…") : t("OCR photo import")}
+          </span>
+          <input
+            ref={ocrInputRef}
+            type="file"
+            className="sr-only"
+            accept="image/png,image/jpeg,image/webp,application/pdf"
+            disabled={ocrLoading}
+            onChange={handleOcr}
+          />
+        </label>
+        {ocrLoading && (
+          <span className="muted spinner">{t("Recognizing with AI…")}</span>
+        )}
+        {ocrNotice && (
+          <div className="ocr-notice" role="status">
+            <CheckCircle2 size={15} />
+            <span>{ocrNotice}</span>
+          </div>
+        )}
+      </div>
       <div className="form-grid">
         {fields.map((f) => (
           <label
@@ -225,6 +299,79 @@ export function DocumentForm({
     ),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrNotice, setOcrNotice] = useState("");
+  const ocrInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOcr = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setOcrLoading(true);
+    setOcrNotice("");
+    setError("");
+    try {
+      const form = new FormData();
+      form.set("file", f);
+      form.set("target", purchase ? "purchases" : "orders");
+      const res = await api("ai/extract", "POST", form);
+      const data = res.data;
+      if (data && typeof data === "object") {
+        if (Array.isArray(data.lines) && data.lines.length) {
+          setLines(
+            data.lines.map((l: any) => ({
+              description: String(l.description || l.name || ""),
+              quantity: String(l.quantity || 1),
+              unit: [
+                "piece",
+                "m",
+                "ft",
+                "kg",
+                "lb",
+                "m2",
+                "ft2",
+                "sheet",
+                "custom",
+              ].includes(l.unit)
+                ? l.unit
+                : "piece",
+              unitPrice: String(l.unitPrice || l.price || 0),
+            })),
+          );
+        }
+        if (data.dueDate || data.date) {
+          setValid(String(data.dueDate || data.date).slice(0, 10));
+        }
+        if (data.discount !== undefined && data.discount !== null) {
+          setDiscount(String(data.discount));
+        }
+        if (data.tax !== undefined && data.tax !== null) {
+          setTax(String(data.tax));
+        }
+        if (data.notes) {
+          setNotes(String(data.notes));
+        }
+        if (data.customerName || data.supplierName) {
+          const targetName = String(data.customerName || data.supplierName).toLowerCase();
+          const list = lookups[purchase ? "suppliers" : "customers"] || [];
+          const matched = list.find((item) =>
+            item.name?.toLowerCase().includes(targetName) ||
+            targetName.includes(item.name?.toLowerCase() || ""),
+          );
+          if (matched) setParty(matched.id);
+        }
+        setOcrNotice(
+          t(
+            "Recognized document items filled below. Please review lines, prices and quantities before saving.",
+          ),
+        );
+      }
+    } catch (err: any) {
+      setError((err as Error).message);
+    } finally {
+      setOcrLoading(false);
+      if (ocrInputRef.current) ocrInputRef.current.value = "";
+    }
+  };
   const update = (i: number, patch: Partial<QuoteLine>) =>
     setLines((old) => old.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   let subtotal = new Decimal(0),
@@ -278,6 +425,31 @@ export function DocumentForm({
         }
       }}
     >
+      <div className="ocr-bar">
+        <label className="ocr-btn">
+          <Camera size={14} />
+          <span>
+            {ocrLoading ? t("Recognizing document…") : t("OCR photo import")}
+          </span>
+          <input
+            ref={ocrInputRef}
+            type="file"
+            className="sr-only"
+            accept="image/png,image/jpeg,image/webp,application/pdf"
+            disabled={ocrLoading}
+            onChange={handleOcr}
+          />
+        </label>
+        {ocrLoading && (
+          <span className="muted spinner">{t("Recognizing with AI…")}</span>
+        )}
+        {ocrNotice && (
+          <div className="ocr-notice" role="status">
+            <CheckCircle2 size={15} />
+            <span>{ocrNotice}</span>
+          </div>
+        )}
+      </div>
       <div className="form-grid">
         <label>
           {purchase ? t("Supplier") : t("Customer")}

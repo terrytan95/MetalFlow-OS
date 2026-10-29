@@ -11,6 +11,7 @@ import {
   AIExecutionError,
   CompletedOutputError,
 } from "./routing.js";
+export { AIExecutionError } from "./routing.js";
 import type { AIProvider } from "@prisma/client";
 export type ProviderConfig = Pick<
   AIProvider,

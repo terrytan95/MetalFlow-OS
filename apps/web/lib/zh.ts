@@ -741,6 +741,13 @@ export const zh: Record<string, string> = {
   "Applies across every module and saves automatically in this browser.":
     "设置将应用于所有模块，并在当前浏览器自动保存。",
   "Workspace preview": "工作区预览",
+  "OCR photo import": "拍照／上传单据智能识别",
+  "Recognizing document…": "正在识别单据内容…",
+  "Recognizing with AI…": "正在智能分析提取…",
+  "Recognized data filled below. Please review and edit fields before saving.":
+    "已通过 OCR 自动识别并填入表单，请在下方核对各项信息，确认无误后保存。",
+  "Recognized document items filled below. Please review lines, prices and quantities before saving.":
+    "已通过 OCR 自动识别单据明细与金额，请仔细核对品名、单价与数量，确认无误后保存。",
   "AI Assistant": "AI 助手",
   "({size} KB)": "({size} KB)",
   "Job queued, please wait…": "任务排队中，请稍候…",

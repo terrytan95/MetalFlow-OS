@@ -129,3 +129,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Transformed the static dual-panel AI assistant and design views into a modern ChatGPT-style conversational chat stream with user and assistant speech bubbles.
 - Replaced legacy form submit with pill-shaped input dock featuring a dedicated plus (+) button for file attachments, auto-expanding textarea, round send button, and disclaimer notes.
 - Maintained compatibility with AI job generation, concept image rendering, model tags, and empty state prompt suggestions.
+
+## Multimodal OCR image recognition & pre-save review (2026-10-29)
+- Added unified OCR photo/document recognition endpoint `POST /metalflow/api/v1/ai/extract` supporting vision extraction across orders, quotations, purchases, customers, inventory, and fabrication work orders via the organization's bound AI provider.
+- Integrated camera/upload OCR action button into both ResourceForm and DocumentForm; parsed fields and line items pre-fill the form automatically.
+- Enforced pre-save user confirmation: displays prominent review notice, allowing users to verify, edit, or adjust all recognized values before final save.
