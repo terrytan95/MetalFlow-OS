@@ -143,3 +143,7 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 ## Expanded AI chat canvas & input width (2026-10-29)
 - Expanded `.chat-container` maximum width from 980px to 1400px and pill input dock to 1080px to utilize wide desktop displays and eliminate excess side margin voids.
 - Enlarged welcome hero card and prompt suggestion grid to 880px with increased 90% message bubble row span.
+
+## Markdown rendering in AI chat responses (2026-10-29)
+- Integrated GitHub Flavored Markdown (GFM) rendering with sanitization for AI assistant and design conversation messages.
+- Formatted headings, lists, blockquotes, inline/fenced code blocks, tables, and links with theme typography tokens.
