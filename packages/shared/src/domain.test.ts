@@ -134,3 +134,36 @@ describe("cutting and authorization", () => {
     expect(can("UNKNOWN", "read")).toBe(false);
   });
 });
+it("indexed first-fit matches the original first-fit patterns", () => {
+  const slow = (cuts: { length: number; quantity: number }[]) => {
+    const bins: { cuts: number[]; remaining: number }[] = [];
+    for (const length of cuts
+      .flatMap((c) => Array(c.quantity).fill(c.length))
+      .sort((a, b) => b - a)) {
+      let bin = bins.find((b) => b.remaining >= length + 3);
+      if (!bin) {
+        bin = { cuts: [], remaining: 5980 };
+        bins.push(bin);
+      }
+      bin.cuts.push(length);
+      bin.remaining -= length + 3;
+    }
+    return bins;
+  };
+  for (let seed = 1; seed <= 30; seed++) {
+    const cuts = Array.from({ length: 8 }, (_, i) => ({
+      length: 100 + ((seed * 431 + i * 719) % 4500),
+      quantity: 1 + ((seed + i) % 7),
+    }));
+    expect(
+      cutting({
+        stockLength: 6000,
+        trim: 10,
+        kerf: 3,
+        available: 100,
+        offcutThreshold: 300,
+        cuts,
+      }).patterns,
+    ).toEqual(slow(cuts));
+  }
+});

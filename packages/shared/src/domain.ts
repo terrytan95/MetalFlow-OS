@@ -176,25 +176,48 @@ export const cutSchema = z.object({
 export function cutting(input: z.infer<typeof cutSchema>) {
   const x = cutSchema.parse(input);
   const usable = x.stockLength - 2 * x.trim;
+  const pieceCount = x.cuts.reduce((sum, cut) => sum + cut.quantity, 0);
+  if (
+    pieceCount > 5000 ||
+    usable <= 0 ||
+    x.cuts.some((c) => c.length + x.kerf > usable)
+  )
+    throw Error("Cut exceeds usable stock or 5000-piece limit");
   const pieces = x.cuts
     .flatMap((c) => Array(c.quantity).fill(c.length) as number[])
     .sort((a, b) => b - a);
-  if (
-    pieces.length > 5000 ||
-    usable <= 0 ||
-    pieces.some((n) => n + x.kerf > usable)
-  )
-    throw Error("Cut exceeds usable stock or 5000-piece limit");
   const bins: { cuts: number[]; remaining: number }[] = [];
-  for (const length of pieces) {
-    let bin = bins.find((b) => b.remaining >= length + x.kerf);
-    if (!bin) {
-      if (bins.length >= x.available) throw Error("Insufficient stock");
-      bin = { cuts: [], remaining: usable };
-      bins.push(bin);
+  let size = 1;
+  while (size < Math.min(x.available, pieces.length)) size *= 2;
+  const maxRemaining = new Float64Array(size * 2).fill(-Infinity);
+  const update = (index: number, remaining: number) => {
+    let node = size + index;
+    maxRemaining[node] = remaining;
+    while (node > 1) {
+      node >>= 1;
+      maxRemaining[node] = Math.max(
+        maxRemaining[node * 2],
+        maxRemaining[node * 2 + 1],
+      );
     }
+  };
+  for (const length of pieces) {
+    const needed = length + x.kerf;
+    let index: number;
+    if (maxRemaining[1] >= needed) {
+      let node = 1;
+      while (node < size)
+        node = maxRemaining[node * 2] >= needed ? node * 2 : node * 2 + 1;
+      index = node - size;
+    } else {
+      if (bins.length >= x.available) throw Error("Insufficient stock");
+      index = bins.length;
+      bins.push({ cuts: [], remaining: usable });
+    }
+    const bin = bins[index];
     bin.cuts.push(length);
-    bin.remaining -= length + x.kerf;
+    bin.remaining -= needed;
+    update(index, bin.remaining);
   }
   const used = pieces.reduce((a, b) => a + b, 0),
     total = bins.length * x.stockLength;

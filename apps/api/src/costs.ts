@@ -14,10 +14,11 @@ export async function snapshotCost(
     },
     select: { id: true, cost: true, unit: true },
   });
+  const byId = new Map(products.map((p) => [p.id, p]));
   let total = new Decimal(0),
     complete = true;
   for (const l of lines) {
-    const p = products.find((p) => p.id === l.productId);
+    const p = byId.get(l.productId || "");
     if (!p || p.unit !== l.unit) {
       complete = false;
       continue;
