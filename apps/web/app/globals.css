@@ -41,7 +41,7 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 html[data-text-size="small"] {
-  --text-scale: 0.9;
+  --text-scale: 0.93;
 }
 html[data-text-size="normal"],
 html:not([data-text-size]) {
@@ -58,7 +58,7 @@ html[data-text-size="xlarge"] {
 }
 body {
   margin: 0;
-  font: calc(13px * var(--text-scale, 1)) / 1.5 var(--font);
+  font: calc(15px * var(--text-scale, 1)) / 1.5 var(--font);
   color: var(--text);
   background: var(--bg);
 }
@@ -121,28 +121,29 @@ label,
   text-wrap: pretty;
 }
 h1 {
-  font-size: calc(28px * var(--text-scale, 1));
+  font-size: calc(26px * var(--text-scale, 1));
   line-height: 1.25;
   font-weight: 650;
-  letter-spacing: -0.9px;
+  letter-spacing: -0.8px;
 }
 h2 {
-  font-size: calc(15px * var(--text-scale, 1));
+  font-size: calc(18px * var(--text-scale, 1));
   font-weight: 650;
 }
 h3 {
-  font-size: calc(14px * var(--text-scale, 1));
+  font-size: calc(16px * var(--text-scale, 1));
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 small {
-  font-size: calc(11px * var(--text-scale, 1));
+  font-size: calc(12.5px * var(--text-scale, 1));
 }
 input,
 select,
 textarea {
   width: 100%;
-  padding: 10px 11px;
+  padding: 9px 12px;
+  font-size: calc(13.5px * var(--text-scale, 1));
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -174,16 +175,16 @@ input[type="checkbox"] {
 }
 label {
   display: block;
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: calc(13.5px * var(--text-scale, 1));
   font-weight: 550;
   color: var(--text);
-  margin-top: 16px;
+  margin-top: 13px;
 }
 label > input,
 label > select,
 label > textarea {
   display: block;
-  margin-top: 7px;
+  margin-top: 5px;
   font-weight: 400;
 }
 textarea {
@@ -213,8 +214,8 @@ pre {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 7px 13px;
+  font-size: calc(13.5px * var(--text-scale, 1));
   font-weight: 550;
   white-space: nowrap;
   line-height: 1.4;
@@ -354,8 +355,8 @@ pre {
   display: flex;
   justify-content: space-between;
   padding: 5px 10px;
-  font-size: calc(9px * var(--text-scale, 1));
-  letter-spacing: 1.3px;
+  font-size: calc(10.5px * var(--text-scale, 1));
+  letter-spacing: 1.1px;
   text-transform: uppercase;
   color: var(--muted);
   cursor: pointer;
@@ -375,7 +376,7 @@ pre {
   background: transparent;
   color: var(--muted);
   text-align: left;
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: calc(13.5px * var(--text-scale, 1));
   margin-top: 1px;
   transition: background-color 120ms ease-out, color 120ms ease-out;
 }
@@ -707,10 +708,10 @@ main {
 }
 .empty h3 {
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: calc(15px * var(--text-scale, 1));
 }
 .empty p {
-  font-size: 11px;
+  font-size: calc(13px * var(--text-scale, 1));
   color: var(--muted);
   max-width: 340px;
 }
@@ -765,7 +766,7 @@ table {
   white-space: nowrap;
 }
 th {
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: calc(11.5px * var(--text-scale, 1));
   letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--muted);
@@ -778,7 +779,7 @@ th {
   border-bottom: 1px solid var(--border);
 }
 td {
-  font-size: calc(12px * var(--text-scale, 1));
+  font-size: calc(13.5px * var(--text-scale, 1));
   font-variant-numeric: tabular-nums;
 }
 tbody tr:hover {
@@ -797,9 +798,9 @@ td:first-child {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 10px 18px;
   color: var(--muted);
-  font-size: calc(10px * var(--text-scale, 1));
+  font-size: calc(12px * var(--text-scale, 1));
 }
 .overlay {
   position: fixed;

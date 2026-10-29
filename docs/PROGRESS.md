@@ -119,3 +119,8 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Applied make-interfaces-feel-better principles: root antialiasing, text-wrap balance for headings and pretty for body/descriptions, multi-layer subtle elevation shadow tokens, concentric radii, and smooth hover lifts.
 - Compacted layout whitespace: streamlined header height from 68px to 54px, main padding to 20px 26px, tighter metric cards (15px 17px padding, 25px font), and high-density enterprise table cells (11px 15px).
 - Humanized Chinese localization with humanizer-zh guidelines: eliminated robotic and hollow marketing phrasing across notifications, workspace headlines, role explanations, token limits, and document workflow confirmations.
+
+## Typography scale expansion, input placeholders & spacing polish (2026-10-29)
+- Substantially increased baseline typography across all tiers from 13px to 15px base (small: 14px, standard: 15px, large: 16.5px, extra large: 18px) for high readability across tables, inputs, labels, headings and sidebars.
+- Added contextual and localized placeholder hints to all input and textarea fields across ResourceForm, DocumentForm, auth screens, settings, takeoffs and modal dialogs.
+- Refined component spacing and reduced dead whitespace: tightened form label margins, notice boxes, modal footers, and quote line margins.

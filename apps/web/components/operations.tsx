@@ -399,7 +399,11 @@ export function Takeoff({
         <label>
           {" "}
           {t("Takeoff name")}{" "}
-          <input value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            value={name}
+            placeholder={t("e.g. Building 1 Railing Takeoff")}
+            onChange={(e) => setName(e.target.value)}
+          />
         </label>
         <label>
           {" "}
@@ -480,11 +484,18 @@ export function Takeoff({
                 min="0.0001"
                 step="any"
                 required
+              placeholder="1.00"
               />
             </label>
             <label>
               {" "}
-              {t("Unit")} <input name="unit" defaultValue="m" required />
+            {t("Unit")}{" "}
+            <input
+              name="unit"
+              defaultValue="m"
+              required
+              placeholder={t("m / kg / piece")}
+            />
             </label>
           </div>
           <Button className="mt">

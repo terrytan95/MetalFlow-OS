@@ -1309,7 +1309,12 @@ function Application() {
                   <label>
                     {" "}
                     {t("Company name")}{" "}
-                    <input name="name" defaultValue={org.name} required />
+                    <input
+                      name="name"
+                      defaultValue={org.name}
+                      required
+                      placeholder={t("Company or organization name")}
+                    />
                   </label>
                   <label>
                     {" "}
@@ -1356,10 +1361,10 @@ function Application() {
                 </p>
                 <div className="appearance-mode mt">
                   {[
-                    { id: "small", en: "Small", zh: "小号", desc: "90%" },
-                    { id: "normal", en: "Standard", zh: "标准", desc: "100%" },
-                    { id: "large", en: "Large", zh: "大号", desc: "110%" },
-                    { id: "xlarge", en: "Extra Large", zh: "特大", desc: "120%" },
+                    { id: "small", en: "Small", zh: "小号", desc: "14px" },
+                    { id: "normal", en: "Standard", zh: "标准", desc: "15px" },
+                    { id: "large", en: "Large", zh: "大号", desc: "16.5px" },
+                    { id: "xlarge", en: "Extra Large", zh: "特大", desc: "18px" },
                   ].map((s) => (
                     <Button
                       key={s.id}
@@ -1688,6 +1693,7 @@ function Application() {
               defaultValue={me.data.user.name}
               required
               maxLength={100}
+              placeholder={t("Your display name")}
             />
           </label>
           <p className="muted mt">{me.data.user.email}</p>
@@ -1774,7 +1780,7 @@ function Application() {
           {!selected && (
             <label>
               {t("Issued invoice ID")}
-              <input name="invoiceId" required />
+              <input name="invoiceId" required placeholder={t("e.g. INV-2026-001")} />
             </label>
           )}
           <label>
@@ -1785,11 +1791,17 @@ function Application() {
               min="0.01"
               step="0.01"
               required
+              placeholder="0.00"
             />
           </label>
           <label>
             {t("Credit reason")}
-            <input name="reason" minLength={5} required />
+            <input
+              name="reason"
+              minLength={5}
+              required
+              placeholder={t("Reason for credit note…")}
+            />
           </label>
           {formError && <p className="error">{t(formError)}</p>}
           <Button className="primary mt">{t("Issue credit note")}</Button>
@@ -1844,10 +1856,10 @@ function Application() {
           <strong>{locale === "zh" ? "页面文本大小" : t("Page text size")}</strong>
           <div className="appearance-mode mt">
             {[
-              { id: "small", en: "Small", zh: "小号", desc: "90%" },
-              { id: "normal", en: "Standard", zh: "标准", desc: "100%" },
-              { id: "large", en: "Large", zh: "大号", desc: "110%" },
-              { id: "xlarge", en: "Extra Large", zh: "特大", desc: "120%" },
+              { id: "small", en: "Small", zh: "小号", desc: "14px" },
+              { id: "normal", en: "Standard", zh: "标准", desc: "15px" },
+              { id: "large", en: "Large", zh: "大号", desc: "16.5px" },
+              { id: "xlarge", en: "Extra Large", zh: "特大", desc: "18px" },
             ].map((s) => (
               <Button
                 key={s.id}
@@ -2044,7 +2056,13 @@ function Application() {
               <>
                 <label>
                   {" "}
-                  {t("Email")} <input name="email" type="email" required />
+                  {t("Email")}{" "}
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="teammate@company.com"
+                  />
                 </label>
                 <label>
                   {" "}
@@ -2097,18 +2115,31 @@ function Application() {
                 <label>
                   {" "}
                   {t("Quantity change")}{" "}
-                  <input name="quantity" type="number" step="0.0001" required />
+                  <input
+                    name="quantity"
+                    type="number"
+                    step="0.0001"
+                    required
+                    placeholder="0.0000"
+                  />
                 </label>
                 <label>
                   {" "}
-                  {t("Reason")} <input name="reason" minLength={5} required />
+                  {t("Reason")}{" "}
+                  <input
+                    name="reason"
+                    minLength={5}
+                    required
+                    placeholder={t("Reason for adjustment…")}
+                  />
                 </label>
               </>
             ) : (
               <>
                 <label>
                   {" "}
-                  {t("Issued invoice ID")} <input name="invoiceId" required />
+                  {t("Issued invoice ID")}{" "}
+                  <input name="invoiceId" required placeholder={t("e.g. INV-2026-001")} />
                 </label>
                 <label>
                   {" "}
@@ -2119,11 +2150,17 @@ function Application() {
                     min="0.01"
                     step="0.01"
                     required
+                    placeholder="0.00"
                   />
                 </label>
                 <label>
                   {" "}
-                  {t("Reference")} <input name="reference" required />
+                  {t("Reference")}{" "}
+                  <input
+                    name="reference"
+                    required
+                    placeholder={t("e.g. Wire transfer #123456")}
+                  />
                 </label>
                 <label>
                   {" "}
@@ -2182,6 +2219,7 @@ function Application() {
                 name="notes"
                 defaultValue={documentQuery.data.notes}
                 maxLength={5000}
+                placeholder={t("Payment terms or notes…")}
               />
             </label>
             {formError && (
@@ -2256,11 +2294,18 @@ function Application() {
               min="0.0001"
               step="0.0001"
               required
+              placeholder="0.0000"
             />
           </label>
           <label>
             {" "}
-            {t("Reason")} <input name="reason" minLength={5} required />
+            {t("Reason")}{" "}
+            <input
+              name="reason"
+              minLength={5}
+              required
+              placeholder={t("Reason for stock transfer…")}
+            />
           </label>
           {formError && <p className="error">{t(formError)}</p>}
           <Button className="primary mt">{t("Confirm transfer")}</Button>
