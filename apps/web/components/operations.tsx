@@ -286,13 +286,14 @@ export function AIWorkspace({
   }, [jobs, mode, t]);
 
   const currentSession =
-    sessions.find((s) => s.sessionId === activeSessionId) ||
-    (activeSessionId && !activeSessionId.startsWith("new_") ? null : sessions[0]);
-  const activeId = currentSession?.sessionId || "";
+    activeSessionId && activeSessionId !== "new"
+      ? sessions.find((s) => s.sessionId === activeSessionId) || null
+      : null;
+  const activeId = currentSession?.sessionId || "new";
   const activeJobs = currentSession ? [...currentSession.jobs].reverse() : [];
 
   const handleNewChat = () => {
-    setActiveSessionId("new_" + Date.now());
+    setActiveSessionId("new");
     setPrompt("");
     setFile(null);
     setError("");
@@ -317,7 +318,7 @@ export function AIWorkspace({
         fileId = (await api("files", "POST", upload)).id;
       }
       const targetSessionId =
-        activeId.startsWith("new_") || !activeId
+        !currentSession || activeId === "new"
           ? crypto.randomUUID()
           : activeId;
       await api("ai/jobs", "POST", {
@@ -668,7 +669,7 @@ export function AIWorkspace({
                 setBusy(true);
                 await api(`ai/sessions/${encodeURIComponent(sessionToDelete)}`, "DELETE");
                 if (activeId === sessionToDelete) {
-                  setActiveSessionId("");
+                  setActiveSessionId("new");
                 }
                 setSessionToDelete(null);
                 refresh();

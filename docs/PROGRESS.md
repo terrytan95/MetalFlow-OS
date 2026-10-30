@@ -154,3 +154,4 @@ Production deployment check: MetalFlow health returned ok; existing FHR/GEX URLs
 - Added "Clear all AI conversation history" action in Organization Settings via `DELETE /metalflow/api/v1/ai/history` with tenant-isolated database cleanup and user confirmation gate.
 - Replaced browser-native window.confirm with in-page theme-matched confirmation modals for both single chat deletion and global history clearing.
 - Extended AI chat layout height to dynamically fill viewport (`calc(100dvh - 200px)`), eliminating lower dead whitespace and maintaining balanced 14px bottom margins to footer across screen resolutions.
+- Fixed "+ New chat" action in AI Workspace to transition into a blank conversation state rather than falling back to historical sessions, generating fresh session IDs on submission.
